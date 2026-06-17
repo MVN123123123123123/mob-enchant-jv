@@ -1,0 +1,147 @@
+package com.mobenchant.mvn123123123123123
+
+import net.minecraft.world.entity.EntityType
+import net.minecraft.world.item.Item
+import net.minecraft.world.item.Items
+
+// ============================================================================
+// Enchantment definition used across the mod
+// ============================================================================
+data class EnchantDef(val id: String, val maxLevel: Int, val category: String)
+
+// Generic weighted entry for random selection
+data class WeightedEntry<T>(val value: T, val weight: Int)
+
+// ============================================================================
+// ENCHANTMENT POOL — All positive vanilla enchantments (no curses)
+// ============================================================================
+object EnchantmentPool {
+
+    val ALL: List<EnchantDef> = listOf(
+        // --- Defensive ---
+        EnchantDef("protection", 4, "defensive"),
+        EnchantDef("projectile_protection", 4, "defensive"),
+        EnchantDef("fire_protection", 4, "defensive"),
+        EnchantDef("blast_protection", 4, "defensive"),
+        EnchantDef("feather_falling", 4, "defensive"),
+        EnchantDef("thorns", 3, "defensive"),
+        EnchantDef("respiration", 3, "passive"),
+        EnchantDef("aqua_affinity", 1, "offensive"),
+
+        // --- Movement ---
+        EnchantDef("depth_strider", 3, "passive"),
+        EnchantDef("frost_walker", 2, "passive"),
+        EnchantDef("soul_speed", 3, "passive"),
+
+        // --- Offensive ---
+        EnchantDef("sharpness", 5, "offensive"),
+        EnchantDef("smite", 5, "offensive"),
+        EnchantDef("bane_of_arthropods", 5, "offensive"),
+        EnchantDef("knockback", 2, "offensive"),
+        EnchantDef("fire_aspect", 2, "offensive"),
+        EnchantDef("looting", 3, "flavor"),
+
+        // --- Tool ---
+        EnchantDef("efficiency", 5, "flavor"),
+        EnchantDef("fortune", 3, "flavor"),
+        EnchantDef("silk_touch", 1, "flavor"),
+        EnchantDef("unbreaking", 3, "flavor"),
+        EnchantDef("mending", 1, "flavor"),
+
+        // --- Ranged ---
+        EnchantDef("power", 5, "offensive"),
+        EnchantDef("punch", 2, "offensive"),
+        EnchantDef("flame", 1, "offensive"),
+        EnchantDef("infinity", 1, "flavor"),
+        EnchantDef("multishot", 1, "flavor"),
+        EnchantDef("piercing", 4, "flavor"),
+        EnchantDef("quick_charge", 3, "flavor"),
+
+        // --- Trident ---
+        EnchantDef("impaling", 5, "offensive"),
+        EnchantDef("riptide", 3, "flavor"),
+        EnchantDef("loyalty", 3, "flavor"),
+        EnchantDef("channeling", 1, "offensive"),
+
+        // --- Fishing ---
+        EnchantDef("luck_of_the_sea", 3, "flavor"),
+        EnchantDef("lure", 3, "flavor"),
+
+        // --- New Additions ---
+        EnchantDef("wind_burst", 3, "offensive"),
+        EnchantDef("density", 5, "offensive"),
+        EnchantDef("breach", 4, "offensive"),
+        EnchantDef("sweeping_edge", 3, "offensive"),
+        EnchantDef("swift_sneak", 3, "passive"),
+        EnchantDef("curse_of_vanishing", 1, "curse"),
+        EnchantDef("curse_of_binding", 1, "curse"),
+    )
+
+    // ========================================================================
+    // LEVEL WEIGHT TABLE — Higher levels are exponentially rarer
+    // Index 0 = level 1, index 1 = level 2, etc.
+    // ========================================================================
+    val LEVEL_WEIGHTS = intArrayOf(100, 40, 15, 5, 1)
+
+    // ========================================================================
+    // ENCHANT COUNT WEIGHTS — How many enchantments the mob gets
+    // 1 enchant: 50%, 2: 25%, 3: 15%, 4: 9%, 5: 1%
+    // ========================================================================
+    val COUNT_WEIGHTS: List<WeightedEntry<Int>> = listOf(
+        WeightedEntry(1, 50),
+        WeightedEntry(2, 25),
+        WeightedEntry(3, 15),
+        WeightedEntry(4, 9),
+        WeightedEntry(5, 1),
+    )
+
+    // ========================================================================
+    // ENTITY TYPE SETS — for targeting-specific enchantments
+    // ========================================================================
+    val UNDEAD_TYPES: Set<EntityType<*>> = setOf(
+        EntityType.ZOMBIE, EntityType.ZOMBIE_VILLAGER, EntityType.HUSK,
+        EntityType.DROWNED, EntityType.SKELETON, EntityType.STRAY,
+        EntityType.WITHER_SKELETON, EntityType.ZOMBIFIED_PIGLIN,
+        EntityType.PHANTOM, EntityType.WITHER, EntityType.ZOGLIN,
+        EntityType.SKELETON_HORSE, EntityType.ZOMBIE_HORSE, EntityType.BOGGED,
+    )
+
+    val ARTHROPOD_TYPES: Set<EntityType<*>> = setOf(
+        EntityType.SPIDER, EntityType.CAVE_SPIDER, EntityType.SILVERFISH,
+        EntityType.ENDERMITE, EntityType.BEE,
+    )
+
+    val AQUATIC_TYPES: Set<EntityType<*>> = setOf(
+        EntityType.COD, EntityType.SALMON, EntityType.TROPICAL_FISH,
+        EntityType.PUFFERFISH, EntityType.SQUID, EntityType.GLOW_SQUID,
+        EntityType.DOLPHIN, EntityType.TURTLE, EntityType.AXOLOTL,
+        EntityType.GUARDIAN, EntityType.ELDER_GUARDIAN, EntityType.DROWNED,
+    )
+
+    // ========================================================================
+    // Ranged mob types eligible for multishot projectile duplication
+    // ========================================================================
+    val RANGED_SHOOTER_TYPES: Set<EntityType<*>> = setOf(
+        EntityType.SKELETON, EntityType.STRAY, EntityType.BOGGED,
+        EntityType.PIGLIN, EntityType.WITCH,
+        EntityType.ENDER_DRAGON, EntityType.WITHER,
+    )
+
+    // ========================================================================
+    // BONUS LOOT TABLE — Items that can drop from enchanted mobs on death
+    // ========================================================================
+    val BONUS_LOOT: List<WeightedEntry<Item>> = listOf(
+        WeightedEntry(Items.EMERALD, 400),
+        WeightedEntry(Items.IRON_INGOT, 290),
+        WeightedEntry(Items.GOLD_INGOT, 290),
+        WeightedEntry(Items.DIAMOND, 19),
+        WeightedEntry(Items.NETHERITE_SCRAP, 1),
+    )
+
+    // ========================================================================
+    // CONSTANTS
+    // ========================================================================
+    const val ENCHANT_CHANCE = 6          // 1-in-N chance to become enchanted
+    const val MAX_ENCHANTS = 5            // Maximum enchantments per mob
+    const val MOB_SEARCH_RADIUS = 5.0     // Command target search radius (blocks)
+}

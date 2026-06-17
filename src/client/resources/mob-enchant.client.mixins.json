@@ -1,0 +1,14 @@
+{
+	"required": true,
+	"package": "com.mobenchant.mvn123123123123123.client.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"ExampleClientMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}
