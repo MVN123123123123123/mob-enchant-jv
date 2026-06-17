@@ -117,11 +117,11 @@ object MobEnchantData {
         if (this.type in EnchantmentPool.RANGED_SHOOTER_TYPES) return true
         
         // Other specific animals that can attack
-        if (this is net.minecraft.world.entity.animal.Cat) return true
-        if (this is net.minecraft.world.entity.animal.Ocelot) return true
-        if (this is net.minecraft.world.entity.animal.Fox) return true
-        if (this is net.minecraft.world.entity.animal.axolotl.Axolotl) return true
-        if (this is net.minecraft.world.entity.animal.Pufferfish) return true
+        if (this.type == net.minecraft.world.entity.EntityTypes.CAT) return true
+        if (this.type == net.minecraft.world.entity.EntityTypes.OCELOT) return true
+        if (this.type == net.minecraft.world.entity.EntityTypes.FOX) return true
+        if (this.type == net.minecraft.world.entity.EntityTypes.AXOLOTL) return true
+        if (this.type == net.minecraft.world.entity.EntityTypes.PUFFERFISH) return true
         
         return false
     }

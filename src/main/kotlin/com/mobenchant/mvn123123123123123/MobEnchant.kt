@@ -57,6 +57,7 @@ object MobEnchant : ModInitializer {
             if (entity !is Mob) return@register
             if (world !is ServerLevel) return@register
             if (entity.isAlreadyRolled()) return@register
+            if (entity.type == net.minecraft.world.entity.EntityTypes.SULFUR_CUBE) return@register
 
             entity.markAsRolled()
 

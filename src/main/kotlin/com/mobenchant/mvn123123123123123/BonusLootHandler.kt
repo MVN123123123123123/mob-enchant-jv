@@ -35,9 +35,9 @@ object BonusLootHandler {
         val enchantCount = enchants.size
 
         // =================================================================
-        // BONUS XP — Base: 3 per enchant + 2 per power level
+        // BONUS XP — Scales with enchant count × power score
         // =================================================================
-        val bonusXP = (enchantCount * 3) + (powerScore * 2)
+        val bonusXP = floor(enchantCount * powerScore * 1.5).toInt().coerceAtLeast(1)
         val killer = source.entity
 
         if (killer is ServerPlayer) {
@@ -46,37 +46,6 @@ object BonusLootHandler {
         } else {
             // Spawn XP orbs at the death location
             ExperienceOrb.award(world, deadEntity.position(), bonusXP)
-        }
-
-        // =================================================================
-        // BONUS LOOT — Scales with enchant count × power score
-        // =================================================================
-        var totalItemsToDrop = floor(enchantCount * powerScore * 1.5).toInt()
-        totalItemsToDrop = totalItemsToDrop.coerceIn(1, 200)
-
-        // Aggregate drops into stacks to prevent lag
-        val drops = mutableMapOf<net.minecraft.world.item.Item, Int>()
-        repeat(totalItemsToDrop) {
-            val lootItem = EnchantmentRoller.weightedRandom(EnchantmentPool.BONUS_LOOT)
-            drops[lootItem] = (drops[lootItem] ?: 0) + 1
-        }
-
-        val loc = deadEntity.position()
-        for ((item, totalAmount) in drops) {
-            var remaining = totalAmount
-            while (remaining > 0) {
-                val stackSize = min(remaining, 64)
-                remaining -= stackSize
-
-                val ox = loc.x + (Math.random() - 0.5) * 0.8
-                val oz = loc.z + (Math.random() - 0.5) * 0.8
-                try {
-                    val stack = ItemStack(item, stackSize)
-                    val itemEntity = ItemEntity(world, ox, loc.y + 0.5, oz, stack)
-                    itemEntity.setDefaultPickUpDelay()
-                    world.addFreshEntity(itemEntity)
-                } catch (_: Exception) { }
-            }
         }
 
         // =================================================================
@@ -95,8 +64,6 @@ object BonusLootHandler {
             .append(Component.literal(enchantNames).withStyle(ChatFormatting.YELLOW))
             .append(Component.literal("] ").withStyle(ChatFormatting.DARK_GRAY))
             .append(Component.literal("+${bonusXP} bonus XP").withStyle(ChatFormatting.GOLD))
-            .append(Component.literal(" | ").withStyle(ChatFormatting.DARK_GRAY))
-            .append(Component.literal("${totalItemsToDrop} bonus drops").withStyle(ChatFormatting.GREEN))
 
         world.server.playerList.broadcastSystemMessage(msg, false)
     }

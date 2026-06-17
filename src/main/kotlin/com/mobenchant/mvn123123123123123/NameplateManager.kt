@@ -78,7 +78,7 @@ object NameplateManager {
             } as? net.minecraft.world.entity.Display.TextDisplay
             
             if (headerDisplay == null && !entity.level().isClientSide) {
-                headerDisplay = net.minecraft.world.entity.Display.TextDisplay(net.minecraft.world.entity.EntityType.TEXT_DISPLAY, entity.level())
+                headerDisplay = net.minecraft.world.entity.Display.TextDisplay(net.minecraft.world.entity.EntityTypes.TEXT_DISPLAY, entity.level())
                 headerDisplay.addTag("mobenchant:header")
                 headerDisplay.setPos(entity.x, entity.y, entity.z)
                 entity.level().addFreshEntity(headerDisplay)

@@ -1,6 +1,7 @@
 package com.mobenchant.mvn123123123123123
 
 import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.EntityTypes
 import net.minecraft.world.item.Item
 import net.minecraft.world.item.Items
 
@@ -99,32 +100,32 @@ object EnchantmentPool {
     // ENTITY TYPE SETS — for targeting-specific enchantments
     // ========================================================================
     val UNDEAD_TYPES: Set<EntityType<*>> = setOf(
-        EntityType.ZOMBIE, EntityType.ZOMBIE_VILLAGER, EntityType.HUSK,
-        EntityType.DROWNED, EntityType.SKELETON, EntityType.STRAY,
-        EntityType.WITHER_SKELETON, EntityType.ZOMBIFIED_PIGLIN,
-        EntityType.PHANTOM, EntityType.WITHER, EntityType.ZOGLIN,
-        EntityType.SKELETON_HORSE, EntityType.ZOMBIE_HORSE, EntityType.BOGGED,
+        EntityTypes.ZOMBIE, EntityTypes.ZOMBIE_VILLAGER, EntityTypes.HUSK,
+        EntityTypes.DROWNED, EntityTypes.SKELETON, EntityTypes.STRAY,
+        EntityTypes.WITHER_SKELETON, EntityTypes.ZOMBIFIED_PIGLIN,
+        EntityTypes.PHANTOM, EntityTypes.WITHER, EntityTypes.ZOGLIN,
+        EntityTypes.SKELETON_HORSE, EntityTypes.ZOMBIE_HORSE, EntityTypes.BOGGED,
     )
 
     val ARTHROPOD_TYPES: Set<EntityType<*>> = setOf(
-        EntityType.SPIDER, EntityType.CAVE_SPIDER, EntityType.SILVERFISH,
-        EntityType.ENDERMITE, EntityType.BEE,
+        EntityTypes.SPIDER, EntityTypes.CAVE_SPIDER, EntityTypes.SILVERFISH,
+        EntityTypes.ENDERMITE, EntityTypes.BEE,
     )
 
     val AQUATIC_TYPES: Set<EntityType<*>> = setOf(
-        EntityType.COD, EntityType.SALMON, EntityType.TROPICAL_FISH,
-        EntityType.PUFFERFISH, EntityType.SQUID, EntityType.GLOW_SQUID,
-        EntityType.DOLPHIN, EntityType.TURTLE, EntityType.AXOLOTL,
-        EntityType.GUARDIAN, EntityType.ELDER_GUARDIAN, EntityType.DROWNED,
+        EntityTypes.COD, EntityTypes.SALMON, EntityTypes.TROPICAL_FISH,
+        EntityTypes.PUFFERFISH, EntityTypes.SQUID, EntityTypes.GLOW_SQUID,
+        EntityTypes.DOLPHIN, EntityTypes.TURTLE, EntityTypes.AXOLOTL,
+        EntityTypes.GUARDIAN, EntityTypes.ELDER_GUARDIAN, EntityTypes.DROWNED,
     )
 
     // ========================================================================
     // Ranged mob types eligible for multishot projectile duplication
     // ========================================================================
     val RANGED_SHOOTER_TYPES: Set<EntityType<*>> = setOf(
-        EntityType.SKELETON, EntityType.STRAY, EntityType.BOGGED,
-        EntityType.PIGLIN, EntityType.WITCH,
-        EntityType.ENDER_DRAGON, EntityType.WITHER,
+        EntityTypes.SKELETON, EntityTypes.STRAY, EntityTypes.BOGGED,
+        EntityTypes.PIGLIN, EntityTypes.WITCH,
+        EntityTypes.ENDER_DRAGON, EntityTypes.WITHER,
     )
 
     // ========================================================================

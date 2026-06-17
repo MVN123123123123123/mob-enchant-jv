@@ -15,6 +15,7 @@ import net.minecraft.world.damagesource.DamageSource
 import net.minecraft.world.effect.MobEffectInstance
 import net.minecraft.world.effect.MobEffects
 import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.EntityTypes
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.Mob
 import net.minecraft.world.entity.projectile.Projectile
@@ -207,7 +208,7 @@ object EnchantmentEffects {
                             val dz = victim.z - attacker.z
                             val dist = sqrt(dx * dx + dz * dz).coerceAtLeast(1.0)
                             val power = 0.67 * enchant.level
-                            victim.knockback(power, dx / dist, dz / dist)
+                            victim.knockback(power, dx / dist, dz / dist, victim.damageSources().mobAttack(attacker), baseDamage)
                         }
 
                         // --- POWER: Extra damage (ranged concept, applies to melee too) ---
@@ -222,7 +223,7 @@ object EnchantmentEffects {
                             val dz = victim.z - attacker.z
                             val dist = sqrt(dx * dx + dz * dz).coerceAtLeast(1.0)
                             val power = 0.5 * enchant.level
-                            victim.knockback(power, dx / dist, dz / dist)
+                            victim.knockback(power, dx / dist, dz / dist, victim.damageSources().mobAttack(attacker), baseDamage)
                         }
 
                         // --- FLAME: Set target on fire ---
@@ -241,7 +242,7 @@ object EnchantmentEffects {
                         // --- CHANNELING: Lightning strike ---
                         "channeling" -> {
                             try {
-                                val lightning = EntityType.LIGHTNING_BOLT.create(world, net.minecraft.world.entity.EntitySpawnReason.COMMAND)
+                                val lightning = EntityTypes.LIGHTNING_BOLT.create(world, net.minecraft.world.entity.EntitySpawnReason.COMMAND)
                                 if (lightning != null) {
                                     lightning.setPos(victim.x, victim.y, victim.z)
                                     world.addFreshEntity(lightning)
@@ -543,7 +544,7 @@ object EnchantmentEffects {
 
         // Only ranged shooter types are eligible
         if (owner.type !in EnchantmentPool.RANGED_SHOOTER_TYPES &&
-            projectile.type != EntityType.ARROW) return
+            projectile.type != EntityTypes.ARROW) return
 
         val vel = projectile.deltaMovement
         val speed = vel.length()
