@@ -106,11 +106,20 @@ object MobEnchantData {
 
     fun Entity.canDealDamage(): Boolean {
         if (this !is net.minecraft.world.entity.LivingEntity) return false
-        try {
-            if (this.attributes.hasAttribute(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE)) return true
-        } catch (_: Exception) {}
+        
+        // Hostile mobs and explicit shooters can always deal damage
         if (this is net.minecraft.world.entity.monster.Enemy) return true
         if (this.type in EnchantmentPool.RANGED_SHOOTER_TYPES) return true
+        
+        // For neutral or other mobs, check if they actually have a positive attack damage value
+        try {
+            if (this.attributes.hasAttribute(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE)) {
+                if (this.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE) > 0.0) {
+                    return true
+                }
+            }
+        } catch (_: Exception) {}
+        
         return false
     }
 }

@@ -45,17 +45,17 @@ object EnchantmentPool {
         EnchantDef("efficiency", 5, "flavor"),
         EnchantDef("fortune", 3, "flavor"),
         EnchantDef("silk_touch", 1, "flavor"),
-        EnchantDef("unbreaking", 3, "flavor"),
-        EnchantDef("mending", 1, "flavor"),
+        EnchantDef("unbreaking", 3, "defensive"),
+        EnchantDef("mending", 1, "passive"),
 
         // --- Ranged ---
         EnchantDef("power", 5, "offensive"),
         EnchantDef("punch", 2, "offensive"),
         EnchantDef("flame", 1, "offensive"),
-        EnchantDef("infinity", 1, "flavor"),
-        EnchantDef("multishot", 1, "flavor"),
-        EnchantDef("piercing", 4, "flavor"),
-        EnchantDef("quick_charge", 3, "flavor"),
+        EnchantDef("infinity", 1, "defensive"),
+        EnchantDef("multishot", 1, "offensive"),
+        EnchantDef("piercing", 4, "offensive"),
+        EnchantDef("quick_charge", 3, "offensive"),
 
         // --- Trident ---
         EnchantDef("impaling", 5, "offensive"),
@@ -73,8 +73,8 @@ object EnchantmentPool {
         EnchantDef("breach", 4, "offensive"),
         EnchantDef("sweeping_edge", 3, "offensive"),
         EnchantDef("swift_sneak", 3, "passive"),
-        EnchantDef("curse_of_vanishing", 1, "curse"),
-        EnchantDef("curse_of_binding", 1, "curse"),
+        EnchantDef("curse_of_vanishing", 1, "offensive"),
+        EnchantDef("curse_of_binding", 1, "offensive"),
     )
 
     // ========================================================================

@@ -35,6 +35,10 @@ object EnchantmentEffects {
     // Infinity shield alert cooldown per entity ID
     private val lastInfinityAlert = mutableMapOf<Int, Long>()
 
+    // Infinity hit tracking
+    private val infinityHits = mutableMapOf<Int, Int>()
+    private val infinityWindowStart = mutableMapOf<Int, Long>()
+
     // Multishot melee crit guard
     private val activeMultishots = mutableSetOf<Int>()
 
@@ -386,7 +390,7 @@ object EnchantmentEffects {
     }
 
     // ========================================================================
-    // INFINITY SHIELD — Blocks all damage until broken by a potion
+    // INFINITY SHIELD — Blocks all damage until broken
     // Returns true if damage should be CANCELLED
     // ========================================================================
     fun handleInfinityShield(
@@ -397,26 +401,102 @@ object EnchantmentEffects {
         val infinity = victim.getMobEnchant("infinity") ?: return false
         if (victim.isInfinityBroken()) return false
 
-        // Cancel the damage
+        val attacker = source.entity
         val now = System.currentTimeMillis()
-        val lastAlert = lastInfinityAlert[victim.id] ?: 0L
-        if (now - lastAlert > 2000L) {
-            lastInfinityAlert[victim.id] = now
 
-            // Visual feedback
-            world.sendParticles(ParticleTypes.WITCH, victim.x, victim.y + 1.0, victim.z, 8, 0.4, 0.5, 0.4, 0.02)
-            world.playSound(null, victim.x, victim.y, victim.z, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 0.5f, 2.0f)
+        // Handle window for critical hit
+        val windowStart = infinityWindowStart[victim.id]
+        if (windowStart != null) {
+            if (now - windowStart <= 10000L) {
+                // Window is active, check for crit
+                val isCrit = attacker is net.minecraft.world.entity.player.Player &&
+                             attacker.fallDistance > 0.0f &&
+                             !attacker.onGround()
+                if (isCrit) {
+                    // Break the shield
+                    victim.setInfinityBroken(true)
+                    infinityHits.remove(victim.id)
+                    infinityWindowStart.remove(victim.id)
+                    lastInfinityAlert.remove(victim.id)
 
-            // Inform the attacking player
-            val attacker = source.entity
-            if (attacker is net.minecraft.server.level.ServerPlayer) {
-                val msg = net.minecraft.network.chat.Component.literal("")
-                    .append(net.minecraft.network.chat.Component.literal("✦ ").withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE, net.minecraft.ChatFormatting.BOLD))
-                    .append(net.minecraft.network.chat.Component.literal("Infinity Shield").withStyle(net.minecraft.ChatFormatting.YELLOW))
-                    .append(net.minecraft.network.chat.Component.literal(" is active! Splash any potion on this mob to break it.").withStyle(net.minecraft.ChatFormatting.GRAY))
-                attacker.sendSystemMessage(msg)
+                    world.playSound(null, victim.x, victim.y, victim.z, SoundEvents.SHIELD_BREAK, SoundSource.HOSTILE, 1.0f, 1.0f)
+                    world.sendParticles(ParticleTypes.ENCHANTED_HIT, victim.x, victim.y + 1.0, victim.z, 30, 0.5, 0.5, 0.5, 0.2)
+                    
+                    if (attacker is net.minecraft.server.level.ServerPlayer) {
+                        val msg = net.minecraft.network.chat.Component.literal("")
+                            .append(net.minecraft.network.chat.Component.literal("✦ ").withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE, net.minecraft.ChatFormatting.BOLD))
+                            .append(net.minecraft.network.chat.Component.literal("Infinity Shield Shattered!").withStyle(net.minecraft.ChatFormatting.GREEN))
+                        attacker.sendSystemMessage(msg)
+                    }
+
+                    return false // Let the damage through
+                } else {
+                    // Tell player they need a crit
+                    if (attacker is net.minecraft.server.level.ServerPlayer) {
+                        val lastAlert = lastInfinityAlert[victim.id] ?: 0L
+                        if (now - lastAlert > 2000L) {
+                            lastInfinityAlert[victim.id] = now
+                            val remaining = 10 - (now - windowStart) / 1000
+                            val msg = net.minecraft.network.chat.Component.literal("")
+                                .append(net.minecraft.network.chat.Component.literal("✦ ").withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE, net.minecraft.ChatFormatting.BOLD))
+                                .append(net.minecraft.network.chat.Component.literal("Shield is unstable! Land a Critical Hit in ${remaining}s!").withStyle(net.minecraft.ChatFormatting.GOLD))
+                            attacker.sendSystemMessage(msg)
+                        }
+                    }
+                }
+            } else {
+                // Window expired, reset hits
+                infinityWindowStart.remove(victim.id)
+                infinityHits.remove(victim.id)
+                if (attacker is net.minecraft.server.level.ServerPlayer) {
+                    val msg = net.minecraft.network.chat.Component.literal("")
+                        .append(net.minecraft.network.chat.Component.literal("✦ ").withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE, net.minecraft.ChatFormatting.BOLD))
+                        .append(net.minecraft.network.chat.Component.literal("Window missed. Infinity Shield restabilized.").withStyle(net.minecraft.ChatFormatting.RED))
+                    attacker.sendSystemMessage(msg)
+                }
+            }
+        } else {
+            // Not in window, track hits
+            if (attacker is net.minecraft.world.entity.player.Player) {
+                val hits = (infinityHits[victim.id] ?: 0) + 1
+                if (hits >= 5) {
+                    // Open window
+                    infinityWindowStart[victim.id] = now
+                    infinityHits.remove(victim.id)
+                    world.playSound(null, victim.x, victim.y, victim.z, SoundEvents.ANVIL_USE, SoundSource.HOSTILE, 0.5f, 1.0f)
+                    
+                    if (attacker is net.minecraft.server.level.ServerPlayer) {
+                        val msg = net.minecraft.network.chat.Component.literal("")
+                            .append(net.minecraft.network.chat.Component.literal("✦ ").withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE, net.minecraft.ChatFormatting.BOLD))
+                            .append(net.minecraft.network.chat.Component.literal("Infinity Shield is vulnerable! Land a Critical Hit within 10 seconds!").withStyle(net.minecraft.ChatFormatting.GOLD))
+                        attacker.sendSystemMessage(msg)
+                    }
+                } else {
+                    infinityHits[victim.id] = hits
+                    val lastAlert = lastInfinityAlert[victim.id] ?: 0L
+                    if (now - lastAlert > 2000L) {
+                        lastInfinityAlert[victim.id] = now
+                        if (attacker is net.minecraft.server.level.ServerPlayer) {
+                            val msg = net.minecraft.network.chat.Component.literal("")
+                                .append(net.minecraft.network.chat.Component.literal("✦ ").withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE, net.minecraft.ChatFormatting.BOLD))
+                                .append(net.minecraft.network.chat.Component.literal("Infinity Shield").withStyle(net.minecraft.ChatFormatting.YELLOW))
+                                .append(net.minecraft.network.chat.Component.literal(" absorbed the hit! (${hits}/5 to destablize)").withStyle(net.minecraft.ChatFormatting.GRAY))
+                            attacker.sendSystemMessage(msg)
+                        }
+                    }
+                }
+            } else {
+                // If the attacker isn't a player (e.g. environment or other mob), just play regular sound
+                val lastAlert = lastInfinityAlert[victim.id] ?: 0L
+                if (now - lastAlert > 2000L) {
+                    lastInfinityAlert[victim.id] = now
+                    world.playSound(null, victim.x, victim.y, victim.z, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 0.5f, 2.0f)
+                }
             }
         }
+
+        // Cancel the damage (if we haven't returned false above)
+        world.sendParticles(ParticleTypes.WITCH, victim.x, victim.y + 1.0, victim.z, 8, 0.4, 0.5, 0.4, 0.02)
         return true // CANCEL the damage
     }
 
@@ -445,25 +525,10 @@ object EnchantmentEffects {
 
     // ========================================================================
     // EFFECT ADDED — Called from Mixin when any effect is added to a mob.
-    // Used to break Infinity shield when a potion is splashed.
     // ========================================================================
     @JvmStatic
     fun onEffectAdded(entity: LivingEntity, effect: MobEffectInstance) {
-        if (suppressEffectCheck) return
-        if (entity !is Mob) return
-
-        val infinity = entity.getMobEnchant("infinity") ?: return
-        if (entity.isInfinityBroken()) return
-
-        // Break the infinity shield
-        entity.setInfinityBroken(true)
-        lastInfinityAlert.remove(entity.id)
-
-        if (entity.level() is ServerLevel) {
-            val world = entity.level() as ServerLevel
-            world.playSound(null, entity.x, entity.y, entity.z, SoundEvents.SHIELD_BREAK, SoundSource.HOSTILE, 1.0f, 1.0f)
-            world.sendParticles(ParticleTypes.ENCHANTED_HIT, entity.x, entity.y + 1.0, entity.z, 15, 0.5, 0.5, 0.5, 0.1)
-        }
+        // No longer breaks infinity shield
     }
 
     // ========================================================================
@@ -539,6 +604,8 @@ object EnchantmentEffects {
         lastInfinityAlert.remove(entityId)
         activeMultishots.remove(entityId)
         processingDamage.remove(entityId)
+        infinityHits.remove(entityId)
+        infinityWindowStart.remove(entityId)
     }
 
     // ========================================================================
