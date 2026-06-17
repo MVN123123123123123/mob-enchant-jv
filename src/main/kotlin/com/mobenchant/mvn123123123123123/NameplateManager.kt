@@ -99,6 +99,7 @@ object NameplateManager {
                 
                 headerDisplay.text = fullText
                 headerDisplay.billboardConstraints = net.minecraft.world.entity.Display.BillboardConstraints.CENTER
+                headerDisplay.isInvisible = entity.isInvisible
                 
                 // Safe transformation with non-null scale and rotation
                 val offset = org.joml.Vector3f(0f, 0.4f, 0f)
@@ -132,7 +133,7 @@ object NameplateManager {
             nameText.append(Component.literal(hpString).withStyle(ChatFormatting.RED))
             
             entity.customName = nameText
-            entity.isCustomNameVisible = true
+            entity.isCustomNameVisible = !entity.isInvisible
         } catch (_: Exception) {
             // Ignored
         }

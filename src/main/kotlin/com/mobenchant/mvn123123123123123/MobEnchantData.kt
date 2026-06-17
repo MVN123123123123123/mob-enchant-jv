@@ -107,18 +107,21 @@ object MobEnchantData {
     fun Entity.canDealDamage(): Boolean {
         if (this !is net.minecraft.world.entity.LivingEntity) return false
         
-        // Hostile mobs and explicit shooters can always deal damage
+        // Hostile mobs
         if (this is net.minecraft.world.entity.monster.Enemy) return true
+        
+        // Neutral mobs (Wolves, Bees, Iron Golems, etc.)
+        if (this is net.minecraft.world.entity.NeutralMob) return true
+        
+        // Explicit ranged shooters
         if (this.type in EnchantmentPool.RANGED_SHOOTER_TYPES) return true
         
-        // For neutral or other mobs, check if they actually have a positive attack damage value
-        try {
-            if (this.attributes.hasAttribute(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE)) {
-                if (this.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE) > 0.0) {
-                    return true
-                }
-            }
-        } catch (_: Exception) {}
+        // Other specific animals that can attack
+        if (this is net.minecraft.world.entity.animal.Cat) return true
+        if (this is net.minecraft.world.entity.animal.Ocelot) return true
+        if (this is net.minecraft.world.entity.animal.Fox) return true
+        if (this is net.minecraft.world.entity.animal.axolotl.Axolotl) return true
+        if (this is net.minecraft.world.entity.animal.Pufferfish) return true
         
         return false
     }

@@ -329,7 +329,7 @@ object EnchantmentEffects {
                     // --- CURSE OF VANISHING: Go invisible when hit ---
                     "curse_of_vanishing" -> {
                         if (Random.nextDouble() < 0.5) {
-                            victim.addEffect(MobEffectInstance(MobEffects.INVISIBILITY, 100, 0, false, false))
+                            victim.addEffect(MobEffectInstance(MobEffects.INVISIBILITY, 200, 0, false, false))
                         }
                     }
                 }
