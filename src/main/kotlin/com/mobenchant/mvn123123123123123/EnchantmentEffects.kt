@@ -75,9 +75,7 @@ object EnchantmentEffects {
                         // Handled in handleSoulSpeedDeath
                     }
                     "protection" -> {
-                        // Resistance I for levels 1-2, Resistance II for levels 3-4
-                        val amplifier = if (enchant.level >= 3) 1 else 0
-                        entity.addEffect(MobEffectInstance(MobEffects.RESISTANCE, 72000, amplifier, false, false))
+                        // Handled in handleDefensiveHurt
                     }
                     "feather_falling" -> {
                         val durations = intArrayOf(600, 1200, 2400, 72000)
@@ -286,9 +284,17 @@ object EnchantmentEffects {
     ) {
         val attacker = source.entity as? LivingEntity
 
+        var totalDamageReduction = 0f
+        var blastKbReduction = 0.0
+
         for (enchant in enchants) {
             try {
                 when (enchant.id) {
+                    // --- PROTECTION: Reduce all damage ---
+                    "protection" -> {
+                        totalDamageReduction += enchant.level * 0.15f
+                    }
+
                     // --- THORNS: Reflect damage back to attacker ---
                     "thorns" -> {
                         if (attacker == null || !attacker.isAlive) continue
@@ -303,27 +309,18 @@ object EnchantmentEffects {
                     "blast_protection" -> {
                         if (source.`is`(DamageTypeTags.IS_EXPLOSION)) {
                             // Damage reduction: (15 * level)%, up to 60%
-                            val reduction = (enchant.level * 0.15f).coerceAtMost(0.60f)
-                            if (reduction > 0f) {
-                                victim.heal(damageTaken * reduction)
-                            }
+                            totalDamageReduction += (enchant.level * 0.15f).coerceAtMost(0.60f)
                             
                             // Knockback reduction: (15 * level)%, up to 60%
-                            val kbReduction = (enchant.level * 0.15).coerceAtMost(0.60)
-                            if (kbReduction > 0) {
-                                victim.deltaMovement = victim.deltaMovement.scale(1.0 - kbReduction)
-                            }
+                            blastKbReduction += (enchant.level * 0.15).coerceAtMost(0.60)
                         }
                     }
 
                     // --- PROJECTILE PROTECTION: Reduce projectile damage ---
                     "projectile_protection" -> {
                         if (source.`is`(DamageTypeTags.IS_PROJECTILE)) {
-                            // Damage reduction: (10 * level)%, up to 40%
-                            val reduction = (enchant.level * 0.10f).coerceAtMost(0.40f)
-                            if (reduction > 0f) {
-                                victim.heal(damageTaken * reduction)
-                            }
+                            // Damage reduction: (15 * level)%, up to 60%
+                            totalDamageReduction += (enchant.level * 0.15f).coerceAtMost(0.60f)
                         }
                     }
 
@@ -337,6 +334,17 @@ object EnchantmentEffects {
             } catch (_: Exception) {
                 // Silently handle
             }
+        }
+
+        // Apply capped total damage reduction
+        if (totalDamageReduction > 0f) {
+            val cappedReduction = totalDamageReduction.coerceAtMost(0.95f)
+            victim.heal(damageTaken * cappedReduction)
+        }
+
+        // Apply knockback reduction for explosions
+        if (blastKbReduction > 0.0) {
+            victim.deltaMovement = victim.deltaMovement.scale(1.0 - blastKbReduction)
         }
     }
 
