@@ -303,6 +303,9 @@ object MobEnchant : ModInitializer {
 
                 val enchants = entity.getMobEnchantments()
                 if (enchants.isNullOrEmpty()) continue
+                
+                // Hide the particle for entities with Curse of Vanishing
+                if (enchants.any { it.id == "curse_of_vanishing" }) continue
 
                 for (i in 0 until 3) {
                     val ox = (Random.nextDouble() - 0.5) * 1.5
