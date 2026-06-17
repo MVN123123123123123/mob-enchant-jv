@@ -97,7 +97,12 @@ object NameplateManager {
                     fullText.append(display!!)
                 }
                 
-                headerDisplay.text = fullText
+                if (entity.isInvisible) {
+                    headerDisplay.text = Component.literal("")
+                } else {
+                    headerDisplay.text = fullText
+                }
+                
                 headerDisplay.billboardConstraints = net.minecraft.world.entity.Display.BillboardConstraints.CENTER
                 headerDisplay.isInvisible = entity.isInvisible
                 

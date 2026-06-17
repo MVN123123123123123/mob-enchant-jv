@@ -99,6 +99,8 @@ object MobEnchant : ModInitializer {
             val world = entity.level()
             if (world !is ServerLevel) return@register true
 
+            if (EnchantmentEffects.isCustomDamage) return@register true
+
             // Infinity shield — blocks all damage until broken
             if (EnchantmentEffects.handleInfinityShield(entity, source, world)) {
                 return@register false // CANCEL damage
@@ -107,6 +109,27 @@ object MobEnchant : ModInitializer {
             // Unbreaking revive — chance to survive fatal damage
             if (EnchantmentEffects.handleUnbreakingRevive(entity, amount, world)) {
                 return@register false // CANCEL damage
+            }
+
+            // --- Custom Damage Reduction ---
+            val victimEnchants = entity.getMobEnchantments()
+            if (!victimEnchants.isNullOrEmpty()) {
+                val reduction = EnchantmentEffects.calculateDamageReduction(source, victimEnchants)
+                if (reduction > 0f) {
+                    val cappedReduction = reduction.coerceAtMost(0.95f)
+                    val reducedDamage = amount * (1.0f - cappedReduction)
+                    
+                    EnchantmentEffects.isCustomDamage = true
+                    entity.hurt(source, reducedDamage)
+                    EnchantmentEffects.isCustomDamage = false
+                    
+                    val blastKbReduction = EnchantmentEffects.calculateBlastKbReduction(source, victimEnchants)
+                    if (blastKbReduction > 0.0) {
+                        entity.deltaMovement = entity.deltaMovement.scale(1.0 - blastKbReduction)
+                    }
+
+                    return@register false // CANCEL original damage
+                }
             }
 
             true // Allow damage

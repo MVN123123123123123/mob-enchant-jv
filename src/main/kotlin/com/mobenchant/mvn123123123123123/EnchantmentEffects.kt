@@ -60,10 +60,7 @@ object EnchantmentEffects {
                         // Infinity shield is handled by ALLOW_DAMAGE, no effect needed here
                     }
                     "fire_protection" -> {
-                        // Level 1: 30s, Level 2: 60s, Level 3: 120s, Level 4: permanent
-                        val durations = intArrayOf(600, 1200, 2400, 72000)
-                        val dur = durations[min(enchant.level - 1, durations.size - 1)]
-                        entity.addEffect(MobEffectInstance(MobEffects.FIRE_RESISTANCE, dur, 0, false, false))
+                        // Handled in calculateDamageReduction
                     }
                     "respiration" -> {
                         // Handled in tickContinuousEffects
@@ -276,6 +273,34 @@ object EnchantmentEffects {
     // ========================================================================
     // DEFENSIVE EFFECTS — When an enchanted mob takes damage
     // ========================================================================
+    @JvmStatic
+    var isCustomDamage = false
+
+    fun calculateDamageReduction(source: DamageSource, enchants: List<MobEnchantment>): Float {
+        var totalDamageReduction = 0f
+        for (enchant in enchants) {
+            when (enchant.id) {
+                "protection" -> totalDamageReduction += enchant.level * 0.15f
+                "fire_protection" -> if (source.`is`(DamageTypeTags.IS_FIRE)) totalDamageReduction += enchant.level * 0.15f
+                "blast_protection" -> if (source.`is`(DamageTypeTags.IS_EXPLOSION)) totalDamageReduction += (enchant.level * 0.15f).coerceAtMost(0.60f)
+                "projectile_protection" -> if (source.`is`(DamageTypeTags.IS_PROJECTILE)) totalDamageReduction += (enchant.level * 0.15f).coerceAtMost(0.60f)
+            }
+        }
+        return totalDamageReduction
+    }
+
+    fun calculateBlastKbReduction(source: DamageSource, enchants: List<MobEnchantment>): Double {
+        var blastKbReduction = 0.0
+        if (source.`is`(DamageTypeTags.IS_EXPLOSION)) {
+            for (enchant in enchants) {
+                if (enchant.id == "blast_protection") {
+                    blastKbReduction += (enchant.level * 0.15).coerceAtMost(0.60)
+                }
+            }
+        }
+        return blastKbReduction
+    }
+
     fun handleDefensiveHurt(
         victim: LivingEntity,
         source: DamageSource,
@@ -284,17 +309,9 @@ object EnchantmentEffects {
     ) {
         val attacker = source.entity as? LivingEntity
 
-        var totalDamageReduction = 0f
-        var blastKbReduction = 0.0
-
         for (enchant in enchants) {
             try {
                 when (enchant.id) {
-                    // --- PROTECTION: Reduce all damage ---
-                    "protection" -> {
-                        totalDamageReduction += enchant.level * 0.15f
-                    }
-
                     // --- THORNS: Reflect damage back to attacker ---
                     "thorns" -> {
                         if (attacker == null || !attacker.isAlive) continue
@@ -302,25 +319,6 @@ object EnchantmentEffects {
                         if (Random.nextDouble() < thornsChance) {
                             val thornsDamage = (Random.nextInt(4) + 1).toFloat()
                             attacker.hurt(attacker.damageSources().thorns(victim), thornsDamage)
-                        }
-                    }
-
-                    // --- BLAST PROTECTION: Reduce explosion damage ---
-                    "blast_protection" -> {
-                        if (source.`is`(DamageTypeTags.IS_EXPLOSION)) {
-                            // Damage reduction: (15 * level)%, up to 60%
-                            totalDamageReduction += (enchant.level * 0.15f).coerceAtMost(0.60f)
-                            
-                            // Knockback reduction: (15 * level)%, up to 60%
-                            blastKbReduction += (enchant.level * 0.15).coerceAtMost(0.60)
-                        }
-                    }
-
-                    // --- PROJECTILE PROTECTION: Reduce projectile damage ---
-                    "projectile_protection" -> {
-                        if (source.`is`(DamageTypeTags.IS_PROJECTILE)) {
-                            // Damage reduction: (15 * level)%, up to 60%
-                            totalDamageReduction += (enchant.level * 0.15f).coerceAtMost(0.60f)
                         }
                     }
 
@@ -334,17 +332,6 @@ object EnchantmentEffects {
             } catch (_: Exception) {
                 // Silently handle
             }
-        }
-
-        // Apply capped total damage reduction
-        if (totalDamageReduction > 0f) {
-            val cappedReduction = totalDamageReduction.coerceAtMost(0.95f)
-            victim.heal(damageTaken * cappedReduction)
-        }
-
-        // Apply knockback reduction for explosions
-        if (blastKbReduction > 0.0) {
-            victim.deltaMovement = victim.deltaMovement.scale(1.0 - blastKbReduction)
         }
     }
 
@@ -636,8 +623,44 @@ object EnchantmentEffects {
     fun tickContinuousEffects(entity: Mob, enchants: List<MobEnchantment>) {
         val respiration = enchants.find { it.id == "respiration" }
         val depthStrider = enchants.find { it.id == "depth_strider" }
+        val windBurst = enchants.find { it.id == "wind_burst" }
         
         var waterSpeedBoost = 0.0
+        
+        if (windBurst != null) {
+            val fallDist = entity.fallDistance
+            if (fallDist > 0) {
+                val target = entity.target
+                if (target != null && target.isAlive) {
+                    val dx = target.x - entity.x
+                    val dz = target.z - entity.z
+                    val dist = kotlin.math.sqrt(dx * dx + dz * dz)
+                    
+                    if (dist > 0.5) {
+                        val speed = 0.1
+                        var newDx = entity.deltaMovement.x + (dx / dist) * speed
+                        var newDz = entity.deltaMovement.z + (dz / dist) * speed
+                        
+                        val currentHzSpeed = kotlin.math.sqrt(newDx * newDx + newDz * newDz)
+                        if (currentHzSpeed > 0.8) {
+                            newDx = (newDx / currentHzSpeed) * 0.8
+                            newDz = (newDz / currentHzSpeed) * 0.8
+                        }
+                        
+                        entity.deltaMovement = Vec3(newDx, entity.deltaMovement.y, newDz)
+                    }
+                    
+                    val dy = target.y - entity.y
+                    val dist3D = kotlin.math.sqrt(dx * dx + dy * dy + dz * dz)
+                    if (dist3D <= 3.5 && fallDist > 1.0) {
+                        val world = entity.level()
+                        if (world is ServerLevel && entity.doHurtTarget(world, target)) {
+                            entity.fallDistance = 0.0
+                        }
+                    }
+                }
+            }
+        }
         
         if (respiration != null) {
             waterSpeedBoost += 0.1 * respiration.level
