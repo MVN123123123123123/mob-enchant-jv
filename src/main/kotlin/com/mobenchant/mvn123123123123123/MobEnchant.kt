@@ -30,12 +30,13 @@ object MobEnchant : ModInitializer {
 
     // Tick-based delayed task scheduler (replaces Bedrock's system.runTimeout)
     private val scheduledTasks = mutableListOf<ScheduledTask>()
+    private val tasksToAdd = mutableListOf<ScheduledTask>()
 
     private data class ScheduledTask(var ticksRemaining: Int, val action: () -> Unit)
 
     /** Schedule a task to run after [delayTicks] server ticks. */
     fun scheduleTask(delayTicks: Int, action: () -> Unit) {
-        scheduledTasks.add(ScheduledTask(delayTicks, action))
+        tasksToAdd.add(ScheduledTask(delayTicks, action))
     }
 
     // Tick counters for interval-based logic
@@ -204,6 +205,11 @@ object MobEnchant : ModInitializer {
             }
 
             // Process scheduled tasks
+            if (tasksToAdd.isNotEmpty()) {
+                scheduledTasks.addAll(tasksToAdd)
+                tasksToAdd.clear()
+            }
+            
             val taskIterator = scheduledTasks.iterator()
             while (taskIterator.hasNext()) {
                 val task = taskIterator.next()

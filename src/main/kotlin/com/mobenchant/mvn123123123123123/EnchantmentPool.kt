@@ -78,21 +78,21 @@ object EnchantmentPool {
     )
 
     // ========================================================================
-    // LEVEL WEIGHT TABLE — Higher levels are exponentially rarer
-    // Index 0 = level 1, index 1 = level 2, etc.
+    // LEVEL WEIGHT TABLE — Higher levels are rarer
+    // Index 0 = level 1, index 1 = level 2, etc. (Percentages: 35%, 25%, 18%, 12%, 10%)
     // ========================================================================
-    val LEVEL_WEIGHTS = intArrayOf(100, 40, 15, 5, 1)
+    val LEVEL_WEIGHTS = intArrayOf(35, 25, 18, 12, 10)
 
     // ========================================================================
     // ENCHANT COUNT WEIGHTS — How many enchantments the mob gets
-    // 1 enchant: 50%, 2: 25%, 3: 15%, 4: 9%, 5: 1%
+    // 1 enchant: 40%, 2: 30%, 3: 20%, 4: 7%, 5: 3%
     // ========================================================================
     val COUNT_WEIGHTS: List<WeightedEntry<Int>> = listOf(
-        WeightedEntry(1, 50),
-        WeightedEntry(2, 25),
-        WeightedEntry(3, 15),
-        WeightedEntry(4, 9),
-        WeightedEntry(5, 1),
+        WeightedEntry(1, 40),
+        WeightedEntry(2, 30),
+        WeightedEntry(3, 20),
+        WeightedEntry(4, 7),
+        WeightedEntry(5, 3),
     )
 
     // ========================================================================
