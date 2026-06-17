@@ -637,20 +637,29 @@ object EnchantmentEffects {
                     val dist = kotlin.math.sqrt(dx * dx + dz * dz)
                     
                     if (dist > 0.5) {
-                        val speed = 0.1
+                        val speed = 0.03
                         var newDx = entity.deltaMovement.x + (dx / dist) * speed
                         var newDz = entity.deltaMovement.z + (dz / dist) * speed
                         
                         val currentHzSpeed = kotlin.math.sqrt(newDx * newDx + newDz * newDz)
-                        if (currentHzSpeed > 0.8) {
-                            newDx = (newDx / currentHzSpeed) * 0.8
-                            newDz = (newDz / currentHzSpeed) * 0.8
+                        if (currentHzSpeed > 0.4) {
+                            newDx = (newDx / currentHzSpeed) * 0.4
+                            newDz = (newDz / currentHzSpeed) * 0.4
                         }
                         
                         entity.deltaMovement = Vec3(newDx, entity.deltaMovement.y, newDz)
                     }
                     
-                    val dy = target.y - entity.y
+                    val dy = target.eyeY - entity.eyeY
+                    val rotY = (kotlin.math.atan2(dz, dx) * (180.0 / kotlin.math.PI)).toFloat() - 90.0f
+                    entity.yRot = rotY
+                    entity.yHeadRot = rotY
+                    entity.yBodyRot = rotY
+                    
+                    val horizDist = kotlin.math.sqrt(dx * dx + dz * dz)
+                    val rotX = (-(kotlin.math.atan2(dy, horizDist) * (180.0 / kotlin.math.PI))).toFloat()
+                    entity.xRot = rotX
+                    
                     val dist3D = kotlin.math.sqrt(dx * dx + dy * dy + dz * dz)
                     if (dist3D <= 3.5 && fallDist > 1.0) {
                         val world = entity.level()
