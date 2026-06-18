@@ -661,7 +661,7 @@ object EnchantmentEffects {
                     entity.xRot = rotX
                     
                     val dist3D = kotlin.math.sqrt(dx * dx + dy * dy + dz * dz)
-                    if (dist3D <= 3.5 && fallDist > 1.0) {
+                    if (dist3D <= 2.5 && fallDist > 1.0) {
                         val world = entity.level()
                         if (world is ServerLevel && entity.doHurtTarget(world, target)) {
                             entity.fallDistance = 0.0

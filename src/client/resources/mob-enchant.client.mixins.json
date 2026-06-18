@@ -3,7 +3,8 @@
 	"package": "com.mobenchant.mvn123123123123123.client.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
-		"ExampleClientMixin"
+		"ExampleClientMixin",
+		"ArmedEntityRenderStateMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
