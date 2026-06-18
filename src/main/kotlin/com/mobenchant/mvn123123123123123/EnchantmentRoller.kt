@@ -44,7 +44,7 @@ object EnchantmentRoller {
      */
     fun rollEnchantments(count: Int, excludeIds: Set<String> = emptySet(), onlyDefensive: Boolean = false): List<MobEnchantment> {
         val available = EnchantmentPool.ALL.filter { 
-            it.id !in excludeIds && (!onlyDefensive || it.category == "defensive")
+            it.id !in excludeIds && (!onlyDefensive || (it.category == "defensive" && it.id != "infinity"))
         }.toMutableList()
         
         val picked = mutableListOf<MobEnchantment>()

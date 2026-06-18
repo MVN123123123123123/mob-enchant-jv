@@ -160,6 +160,30 @@ object EnchantmentEffects {
                             victim.addEffect(MobEffectInstance(MobEffects.SLOWNESS, 100, 4, false, true))
                         }
 
+                        // --- CURSE OF VANISHING: Teleport around victim while invisible ---
+                        "curse_of_vanishing" -> {
+                            if (attacker.hasEffect(MobEffects.INVISIBILITY)) {
+                                val random = attacker.random
+                                val oldX = attacker.x
+                                val oldY = attacker.y
+                                val oldZ = attacker.z
+                                for (i in 0..15) {
+                                    val dx = (random.nextDouble() - 0.5) * 16.0
+                                    val dy = (random.nextInt(5) - 2).toDouble()
+                                    val dz = (random.nextDouble() - 0.5) * 16.0
+                                    val targetX = victim.x + dx
+                                    val targetY = victim.y + dy
+                                    val targetZ = victim.z + dz
+                                    
+                                    if (attacker.randomTeleport(targetX, targetY, targetZ, true)) {
+                                        world.playSound(null, oldX, oldY, oldZ, SoundEvents.ENDERMAN_TELEPORT, SoundSource.HOSTILE, 1.0f, 1.0f)
+                                        world.playSound(null, attacker.x, attacker.y, attacker.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.HOSTILE, 1.0f, 1.0f)
+                                        break
+                                    }
+                                }
+                            }
+                        }
+
                         // --- AQUA AFFINITY: 5x damage when in water ---
                         "aqua_affinity" -> {
                             if (attacker.isInWater) {
@@ -326,6 +350,7 @@ object EnchantmentEffects {
                     "curse_of_vanishing" -> {
                         if (Random.nextDouble() < 0.5) {
                             victim.addEffect(MobEffectInstance(MobEffects.INVISIBILITY, 200, 0, false, false))
+                            victim.addEffect(MobEffectInstance(MobEffects.SPEED, 200, 9, false, false))
                         }
                     }
                 }
