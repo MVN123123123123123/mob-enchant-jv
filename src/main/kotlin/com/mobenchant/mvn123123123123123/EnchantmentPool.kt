@@ -125,7 +125,7 @@ object EnchantmentPool {
     val RANGED_SHOOTER_TYPES: Set<EntityType<*>> = setOf(
         EntityTypes.SKELETON, EntityTypes.STRAY, EntityTypes.BOGGED,
         EntityTypes.PIGLIN, EntityTypes.WITCH,
-        EntityTypes.ENDER_DRAGON, EntityTypes.WITHER,
+        EntityTypes.ENDER_DRAGON, EntityTypes.WITHER, EntityTypes.PILLAGER,
     )
 
     // ========================================================================

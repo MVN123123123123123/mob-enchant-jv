@@ -342,7 +342,18 @@ object EnchantmentEffects {
                         val thornsChance = enchant.level * 0.15
                         if (Random.nextDouble() < thornsChance) {
                             val thornsDamage = (Random.nextInt(4) + 1).toFloat()
-                            attacker.hurt(attacker.damageSources().thorns(victim), thornsDamage)
+                            MobEnchant.scheduleTask(1) {
+                                if (attacker.isAlive && victim.isAlive) {
+                                    attacker.hurt(victim.damageSources().thorns(victim), thornsDamage)
+                                    if (victim.level() is ServerLevel) {
+                                        (victim.level() as ServerLevel).sendParticles(
+                                            ParticleTypes.DAMAGE_INDICATOR, 
+                                            attacker.x, attacker.y + attacker.bbHeight / 2.0, attacker.z, 
+                                            3, 0.2, 0.2, 0.2, 0.0
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
 

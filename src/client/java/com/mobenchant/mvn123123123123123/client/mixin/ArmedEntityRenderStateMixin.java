@@ -14,12 +14,25 @@ public class ArmedEntityRenderStateMixin {
 
     @Inject(method = "extractArmedEntityRenderState", at = @At("TAIL"))
     private static void hideWeaponIfVanishing(LivingEntity livingEntity, ArmedEntityRenderState state, ItemModelResolver resolver, float partialTicks, CallbackInfo ci) {
-        if (livingEntity.isInvisible() && MobEnchantData.INSTANCE.getMobEnchant(livingEntity, "curse_of_vanishing") != null) {
-            if (state.rightHandItemState != null) {
-                state.rightHandItemState.clear();
+        if (livingEntity.isInvisible()) {
+            boolean hasVanishing = false;
+            for (net.minecraft.world.entity.Entity passenger : livingEntity.getPassengers()) {
+                if (passenger instanceof net.minecraft.world.entity.Display.TextDisplay textDisplay) {
+                    if (passenger.entityTags().contains("mobenchant:header")) {
+                        if (textDisplay.getText() != null && textDisplay.getText().getString().contains("Vanishing")) {
+                            hasVanishing = true;
+                            break;
+                        }
+                    }
+                }
             }
-            if (state.leftHandItemState != null) {
-                state.leftHandItemState.clear();
+            if (hasVanishing) {
+                if (state.rightHandItemState != null) {
+                    state.rightHandItemState.clear();
+                }
+                if (state.leftHandItemState != null) {
+                    state.leftHandItemState.clear();
+                }
             }
         }
     }
