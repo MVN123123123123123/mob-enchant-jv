@@ -104,7 +104,7 @@ object NameplateManager {
                 
                 // Safe transformation with non-null scale and rotation
                 val offset = org.joml.Vector3f(0f, 0.4f, 0f)
-                val scale = org.joml.Vector3f(1f, 1f, 1f)
+                val scale = if (entity.isInvisible) org.joml.Vector3f(0f, 0f, 0f) else org.joml.Vector3f(1f, 1f, 1f)
                 val rot = org.joml.Quaternionf()
                 val transformation = com.mojang.math.Transformation(offset, rot, scale, rot)
                 headerDisplay.setTransformation(transformation)

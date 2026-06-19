@@ -18,8 +18,9 @@ public class ArmedEntityRenderStateMixin {
             boolean hasVanishing = false;
             for (net.minecraft.world.entity.Entity passenger : livingEntity.getPassengers()) {
                 if (passenger instanceof net.minecraft.world.entity.Display.TextDisplay textDisplay) {
-                    if (passenger.entityTags().contains("mobenchant:header")) {
-                        if (textDisplay.getText() != null && textDisplay.getText().getString().contains("Vanishing")) {
+                    if (textDisplay.getText() != null) {
+                        String text = textDisplay.getText().getString();
+                        if (text.contains("✦ Enchanted") && text.contains("Vanishing")) {
                             hasVanishing = true;
                             break;
                         }

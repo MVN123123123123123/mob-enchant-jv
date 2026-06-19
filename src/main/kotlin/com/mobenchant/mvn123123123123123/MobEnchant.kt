@@ -101,9 +101,18 @@ object MobEnchant : ModInitializer {
 
             if (EnchantmentEffects.isCustomDamage) return@register true
 
+            // Gather all entities in the combination to check for shield/revive
+            val combination = mutableListOf<Mob>()
+            combination.add(entity)
+            val vehicle = entity.vehicle
+            if (vehicle is Mob) combination.add(vehicle)
+            entity.passengers.forEach { if (it is Mob) combination.add(it) }
+
             // Infinity shield — blocks all damage until broken
-            if (EnchantmentEffects.handleInfinityShield(entity, source, world)) {
-                return@register false // CANCEL damage
+            for (combEntity in combination) {
+                if (EnchantmentEffects.handleInfinityShield(combEntity, source, world)) {
+                    return@register false // CANCEL damage
+                }
             }
 
             // Unbreaking revive — chance to survive fatal damage
@@ -112,9 +121,14 @@ object MobEnchant : ModInitializer {
             }
 
             // --- Custom Damage Reduction ---
-            val victimEnchants = entity.getMobEnchantments()
-            if (!victimEnchants.isNullOrEmpty()) {
-                val reduction = EnchantmentEffects.calculateDamageReduction(source, victimEnchants)
+            val combinationEnchants = mutableListOf<MobEnchantment>()
+            for (combEntity in combination) {
+                val enchants = combEntity.getMobEnchantments()
+                if (!enchants.isNullOrEmpty()) combinationEnchants.addAll(enchants)
+            }
+
+            if (combinationEnchants.isNotEmpty()) {
+                val reduction = EnchantmentEffects.calculateDamageReduction(source, combinationEnchants)
                 if (reduction > 0f) {
                     val cappedReduction = reduction.coerceAtMost(0.95f)
                     val reducedDamage = amount * (1.0f - cappedReduction)
@@ -123,7 +137,7 @@ object MobEnchant : ModInitializer {
                     entity.hurt(source, reducedDamage)
                     EnchantmentEffects.isCustomDamage = false
                     
-                    val blastKbReduction = EnchantmentEffects.calculateBlastKbReduction(source, victimEnchants)
+                    val blastKbReduction = EnchantmentEffects.calculateBlastKbReduction(source, combinationEnchants)
                     if (blastKbReduction > 0.0) {
                         entity.deltaMovement = entity.deltaMovement.scale(1.0 - blastKbReduction)
                     }
@@ -165,12 +179,31 @@ object MobEnchant : ModInitializer {
 
             // --- Victim's defensive enchantments ---
             if (entity is Mob) {
-                val victimEnchants = entity.getMobEnchantments()
-                if (!victimEnchants.isNullOrEmpty()) {
-                    EnchantmentEffects.handleDefensiveHurt(entity, source, damageTaken, victimEnchants)
-                    NameplateManager.setEnchantedNameplate(entity, victimEnchants)
+                val combinationEnchants = mutableListOf<MobEnchantment>()
+                
+                val selfEnchants = entity.getMobEnchantments()
+                if (!selfEnchants.isNullOrEmpty()) {
+                    combinationEnchants.addAll(selfEnchants)
+                    NameplateManager.setEnchantedNameplate(entity, selfEnchants)
                 } else {
                     NameplateManager.updateHealthNameplate(entity)
+                }
+
+                val vehicle = entity.vehicle
+                if (vehicle is Mob) {
+                    val vEnchants = vehicle.getMobEnchantments()
+                    if (!vEnchants.isNullOrEmpty()) combinationEnchants.addAll(vEnchants)
+                }
+                
+                for (passenger in entity.passengers) {
+                    if (passenger is Mob) {
+                        val pEnchants = passenger.getMobEnchantments()
+                        if (!pEnchants.isNullOrEmpty()) combinationEnchants.addAll(pEnchants)
+                    }
+                }
+
+                if (combinationEnchants.isNotEmpty()) {
+                    EnchantmentEffects.handleDefensiveHurt(entity, source, damageTaken, combinationEnchants)
                 }
             }
         }
@@ -334,8 +367,8 @@ object MobEnchant : ModInitializer {
                 val enchants = entity.getMobEnchantments()
                 if (enchants.isNullOrEmpty()) continue
                 
-                // Hide the particle for entities with Curse of Vanishing
-                if (enchants.any { it.id == "curse_of_vanishing" }) continue
+                // Hide the particle for invisible entities
+                if (entity.isInvisible) continue
 
                 for (i in 0 until 3) {
                     val ox = (Random.nextDouble() - 0.5) * 1.5

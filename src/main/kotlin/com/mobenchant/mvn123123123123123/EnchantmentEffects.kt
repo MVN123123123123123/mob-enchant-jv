@@ -175,10 +175,20 @@ object EnchantmentEffects {
                                     val targetY = victim.y + dy
                                     val targetZ = victim.z + dz
                                     
+                                    val vehicle = attacker.vehicle
+                                    if (vehicle != null) attacker.stopRiding()
+                                    
                                     if (attacker.randomTeleport(targetX, targetY, targetZ, true)) {
                                         world.playSound(null, oldX, oldY, oldZ, SoundEvents.ENDERMAN_TELEPORT, SoundSource.HOSTILE, 1.0f, 1.0f)
                                         world.playSound(null, attacker.x, attacker.y, attacker.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.HOSTILE, 1.0f, 1.0f)
+                                        
+                                        if (vehicle != null) {
+                                            vehicle.setPos(attacker.x, attacker.y, attacker.z)
+                                            attacker.startRiding(vehicle, true, false)
+                                        }
                                         break
+                                    } else {
+                                        if (vehicle != null) attacker.startRiding(vehicle, true, false)
                                     }
                                 }
                             }
@@ -362,6 +372,19 @@ object EnchantmentEffects {
                         if (Random.nextDouble() < 0.5) {
                             victim.addEffect(MobEffectInstance(MobEffects.INVISIBILITY, 200, 0, false, false))
                             victim.addEffect(MobEffectInstance(MobEffects.SPEED, 200, 9, false, false))
+                            
+                            val vehicle = victim.vehicle
+                            if (vehicle is LivingEntity) {
+                                vehicle.addEffect(MobEffectInstance(MobEffects.INVISIBILITY, 200, 0, false, false))
+                                vehicle.addEffect(MobEffectInstance(MobEffects.SPEED, 200, 9, false, false))
+                            }
+                            
+                            for (passenger in victim.passengers) {
+                                if (passenger is LivingEntity && passenger !is net.minecraft.world.entity.Display.TextDisplay) {
+                                    passenger.addEffect(MobEffectInstance(MobEffects.INVISIBILITY, 200, 0, false, false))
+                                    passenger.addEffect(MobEffectInstance(MobEffects.SPEED, 200, 9, false, false))
+                                }
+                            }
                         }
                     }
                 }
