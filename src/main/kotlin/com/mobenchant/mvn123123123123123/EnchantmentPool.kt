@@ -74,6 +74,7 @@ object EnchantmentPool {
         EnchantDef("breach", 4, "offensive"),
         EnchantDef("sweeping_edge", 3, "offensive"),
         EnchantDef("swift_sneak", 3, "passive"),
+        EnchantDef("lunge", 3, "offensive"),
         EnchantDef("curse_of_vanishing", 1, "offensive"),
         EnchantDef("curse_of_binding", 1, "offensive"),
     )

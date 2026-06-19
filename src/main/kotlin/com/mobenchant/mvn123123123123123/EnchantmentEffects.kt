@@ -6,6 +6,12 @@ import com.mobenchant.mvn123123123123123.MobEnchantData.getRespirationTicks
 import com.mobenchant.mvn123123123123123.MobEnchantData.isInfinityBroken
 import com.mobenchant.mvn123123123123123.MobEnchantData.setInfinityBroken
 import com.mobenchant.mvn123123123123123.MobEnchantData.setRespirationTicks
+import com.mobenchant.mvn123123123123123.MobEnchantData.getLungeCooldown
+import com.mobenchant.mvn123123123123123.MobEnchantData.setLungeCooldown
+import com.mobenchant.mvn123123123123123.MobEnchantData.getLungePrepTicks
+import com.mobenchant.mvn123123123123123.MobEnchantData.setLungePrepTicks
+import com.mobenchant.mvn123123123123123.MobEnchantData.isLunging
+import com.mobenchant.mvn123123123123123.MobEnchantData.setLunging
 import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.sounds.SoundEvents
@@ -82,6 +88,17 @@ object EnchantmentEffects {
                     "swift_sneak" -> {
                         entity.addEffect(MobEffectInstance(MobEffects.SPEED, 72000, enchant.level, false, false))
                         entity.isSilent = true
+                    }
+                    "lunge" -> {
+                        val attr = entity.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.FOLLOW_RANGE)
+                        if (attr != null) {
+                            val modId = net.minecraft.resources.Identifier.fromNamespaceAndPath("mob-enchant", "lunge_range_boost")
+                            if (attr.getModifier(modId) == null) {
+                                attr.addPermanentModifier(net.minecraft.world.entity.ai.attributes.AttributeModifier(
+                                    modId, (enchant.level * 4).toDouble(), net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_VALUE
+                                ))
+                            }
+                        }
                     }
                 }
             }
@@ -683,8 +700,145 @@ object EnchantmentEffects {
         val respiration = enchants.find { it.id == "respiration" }
         val depthStrider = enchants.find { it.id == "depth_strider" }
         val windBurst = enchants.find { it.id == "wind_burst" }
+        val lunge = enchants.find { it.id == "lunge" }
         
         var waterSpeedBoost = 0.0
+
+        if (lunge != null) {
+            val target = entity.target
+            var cooldown = entity.getLungeCooldown()
+            var prepTicks = entity.getLungePrepTicks()
+            var lunging = entity.isLunging()
+
+            if (cooldown > 0) {
+                cooldown--
+                entity.setLungeCooldown(cooldown)
+            }
+
+            if (target != null && target.isAlive) {
+                if (!lunging && cooldown == 0 && prepTicks == 0) {
+                    val dist = entity.distanceToSqr(target)
+                    val range = 4.0 + (lunge.level * 12.0)
+                    if (dist in 9.0..(range * range) && entity.hasLineOfSight(target)) {
+                        entity.setLungePrepTicks(20)
+                        entity.addEffect(MobEffectInstance(MobEffects.SLOWNESS, 20, 10, false, false))
+                    }
+                }
+            }
+
+            if (prepTicks > 0) {
+                if (target != null && entity.distanceToSqr(target) < 6.25) {
+                    // Target got too close during prep (within 2.5 blocks). Cancel lunge and attack normally.
+                    entity.setLungePrepTicks(0)
+                    entity.setLungeCooldown(20)
+                    entity.removeEffect(MobEffects.SLOWNESS)
+                    prepTicks = 0
+                } else {
+                    prepTicks--
+                    entity.setLungePrepTicks(prepTicks)
+                    
+                    if (entity.level() is ServerLevel) {
+                        val sl = entity.level() as ServerLevel
+                        sl.sendParticles(ParticleTypes.ENCHANT, entity.x, entity.y + 1.0, entity.z, 2, 0.5, 0.5, 0.5, 0.1)
+                    }
+
+                    if (prepTicks == 0 && target != null && target.isAlive) {
+                        lunging = true
+                        entity.setLunging(true)
+                        
+                        val velocity = kotlin.math.ceil(2.0 * lunge.level).toDouble()
+                        
+                        // Predict target movement based on their current velocity
+                        val dx0 = target.x - entity.x
+                        val dz0 = target.z - entity.z
+                        val initialDist = kotlin.math.sqrt(dx0 * dx0 + dz0 * dz0)
+                        val travelTicks = (initialDist / (velocity * 0.5)).coerceIn(5.0, 20.0)
+                        
+                        val predictedX = target.x + target.deltaMovement.x * travelTicks
+                        val predictedZ = target.z + target.deltaMovement.z * travelTicks
+                        
+                        val dx = predictedX - entity.x
+                        val dz = predictedZ - entity.z
+                        val dist = kotlin.math.sqrt(dx * dx + dz * dz)
+                        
+                        if (dist > 0) {
+                            // Calculate parabolic trajectory accounting for horizontal air drag (0.91)
+                            val drag = 0.91
+                            val maxDist = velocity / (1.0 - drag)
+                            val realDist = dist.coerceAtMost(maxDist * 0.95)
+                            val travelTime = kotlin.math.ln(1.0 - (1.0 - drag) * realDist / velocity) / kotlin.math.ln(drag)
+                            
+                            val dy = target.y - entity.y
+                            val gravity = 0.08
+                            val calculatedYVelocity = (dy / travelTime) + 0.5 * gravity * travelTime
+                            val yVelocity = calculatedYVelocity.coerceIn(0.2, 1.5) // Allow bigger jumps for long distances
+
+                            entity.deltaMovement = Vec3(
+                                (dx / dist) * velocity,
+                                yVelocity,
+                                (dz / dist) * velocity
+                            )
+                            val rotY = (kotlin.math.atan2(dz, dx) * (180.0 / kotlin.math.PI)).toFloat() - 90.0f
+                            val horizDist = kotlin.math.sqrt(dx * dx + dz * dz)
+                            val rotX = (-(kotlin.math.atan2(yVelocity, horizDist) * (180.0 / kotlin.math.PI))).toFloat()
+                            entity.yRot = rotY
+                            entity.yHeadRot = rotY
+                            entity.yBodyRot = rotY
+                            entity.xRot = rotX
+                        }
+                        
+                        entity.level().playSound(null, entity.x, entity.y, entity.z, SoundEvents.TRIDENT_THROW, SoundSource.HOSTILE, 1.0f, 1.0f)
+                    }
+                }
+            }
+
+            if (lunging) {
+                val horizSpeed = kotlin.math.sqrt(entity.deltaMovement.x * entity.deltaMovement.x + entity.deltaMovement.z * entity.deltaMovement.z)
+                if (horizSpeed < 0.2 && entity.onGround()) {
+                    entity.setLunging(false)
+                    entity.setLungeCooldown(60)
+                } else {
+                    val velocity = kotlin.math.ceil(2.0 * lunge.level).toDouble()
+                    // Handle attributes safely
+                    val baseDamageAttr = entity.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE)
+                    val baseDamage = baseDamageAttr?.value?.toFloat() ?: 2.0f
+                    val damage = (velocity * baseDamage * (lunge.level / 2.0)).toFloat()
+
+                    val hitBox = entity.boundingBox.inflate(0.5)
+                    val victims = entity.level().getEntitiesOfClass(LivingEntity::class.java, hitBox) { it != entity && it.isAlive }
+                    var hitSomeone = false
+                    
+                    for (victim in victims) {
+                        if (victim is Mob && victim.target == entity) continue
+                        victim.hurt(entity.damageSources().mobAttack(entity), damage)
+                    }
+                    
+                    if (entity.level() is ServerLevel) {
+                        val sl = entity.level() as ServerLevel
+                        val look = entity.lookAngle
+                        val dirX = look.x
+                        val dirY = look.y
+                        val dirZ = look.z
+                            val length = 3.0
+                            val steps = 10
+                            for (i in 1..steps) {
+                                val fraction = i.toDouble() / steps
+                                val dist = fraction * length
+                                val spread = 0.25 * (1.0 - fraction) // Thick at base, sharp at tip
+                                
+                                val px = entity.x + dirX * dist
+                                val py = entity.y + entity.eyeHeight / 2.0 + dirY * dist
+                                val pz = entity.z + dirZ * dist
+                                
+                                sl.sendParticles(ParticleTypes.CRIT, px, py, pz, 2, spread, spread, spread, 0.0)
+                                if (i == steps) {
+                                    sl.sendParticles(ParticleTypes.ENCHANTED_HIT, px, py, pz, 2, 0.0, 0.0, 0.0, 0.05)
+                                }
+                            }
+                    }
+                }
+            }
+        }
         
         if (windBurst != null) {
             val fallDist = entity.fallDistance

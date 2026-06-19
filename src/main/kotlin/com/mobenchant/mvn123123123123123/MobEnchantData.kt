@@ -91,6 +91,28 @@ object MobEnchantData {
         setAttached(ALREADY_ROLLED, true)
     }
 
+    val LUNGE_COOLDOWN: AttachmentType<Int> = AttachmentRegistry.createPersistent(
+        Identifier.fromNamespaceAndPath(MOD_ID, "lunge_cooldown"),
+        Codec.INT,
+    )
+    fun Entity.getLungeCooldown(): Int = getAttached(LUNGE_COOLDOWN) ?: 0
+    fun Entity.setLungeCooldown(ticks: Int) = setAttached(LUNGE_COOLDOWN, ticks)
+
+    val LUNGE_PREP_TICKS: AttachmentType<Int> = AttachmentRegistry.createPersistent(
+        Identifier.fromNamespaceAndPath(MOD_ID, "lunge_prep_ticks"),
+        Codec.INT,
+    )
+    fun Entity.getLungePrepTicks(): Int = getAttached(LUNGE_PREP_TICKS) ?: 0
+    fun Entity.setLungePrepTicks(ticks: Int) = setAttached(LUNGE_PREP_TICKS, ticks)
+
+    val IS_LUNGING: AttachmentType<Boolean> = AttachmentRegistry.createPersistent(
+        Identifier.fromNamespaceAndPath(MOD_ID, "is_lunging"),
+        Codec.BOOL,
+    )
+    fun Entity.isLunging(): Boolean = getAttached(IS_LUNGING) == true
+    fun Entity.setLunging(lunging: Boolean) = setAttached(IS_LUNGING, lunging)
+
+
     val RESPIRATION_TICKS: AttachmentType<Int> = AttachmentRegistry.createPersistent(
         Identifier.fromNamespaceAndPath(MOD_ID, "respiration_ticks"),
         Codec.INT,
