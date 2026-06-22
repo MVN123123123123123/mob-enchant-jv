@@ -81,12 +81,12 @@ object EnchantmentEffects {
                         // Handled in handleDefensiveHurt
                     }
                     "feather_falling" -> {
-                        val durations = intArrayOf(600, 1200, 2400, 72000)
+                        val durations = intArrayOf(20000000, 20000000, 20000000, 20000000)
                         val dur = durations[min(enchant.level - 1, durations.size - 1)]
                         entity.addEffect(MobEffectInstance(MobEffects.SLOW_FALLING, dur, 0, false, false))
                     }
                     "swift_sneak" -> {
-                        entity.addEffect(MobEffectInstance(MobEffects.SPEED, 72000, enchant.level, false, false))
+                        entity.addEffect(MobEffectInstance(MobEffects.SPEED, 20000000, enchant.level, false, false))
                         entity.isSilent = true
                     }
                     "lunge" -> {
@@ -972,7 +972,7 @@ object EnchantmentEffects {
                 
                 val newAmplifier = min(currentAmplifier + speedGain, cap - 1)
                 
-                mob.addEffect(MobEffectInstance(MobEffects.SPEED, 72000, newAmplifier, false, false))
+                mob.addEffect(MobEffectInstance(MobEffects.SPEED, 20000000, newAmplifier, false, false))
             }
         }
     }
