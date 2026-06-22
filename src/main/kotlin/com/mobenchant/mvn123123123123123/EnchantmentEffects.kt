@@ -514,6 +514,26 @@ object EnchantmentEffects {
                                 .append(net.minecraft.network.chat.Component.literal("Shield is unstable! Land a Critical Hit in ${remaining}s!").withStyle(net.minecraft.ChatFormatting.GOLD))
                             attacker.sendSystemMessage(msg)
                         }
+                    } else if (attacker is LivingEntity && attacker !is net.minecraft.world.entity.player.Player) {
+                        val hits = (infinityHits[victim.id] ?: 0) + 1
+                        if (hits >= 10) {
+                            victim.setInfinityBroken(true)
+                            infinityHits.remove(victim.id)
+                            infinityWindowStart.remove(victim.id)
+                            lastInfinityAlert.remove(victim.id)
+
+                            world.playSound(null, victim.x, victim.y, victim.z, SoundEvents.SHIELD_BREAK, SoundSource.HOSTILE, 1.0f, 1.0f)
+                            world.sendParticles(ParticleTypes.ENCHANTED_HIT, victim.x, victim.y + 1.0, victim.z, 30, 0.5, 0.5, 0.5, 0.2)
+                            
+                            return false
+                        } else {
+                            infinityHits[victim.id] = hits
+                            val lastAlert = lastInfinityAlert[victim.id] ?: 0L
+                            if (now - lastAlert > 2000L) {
+                                lastInfinityAlert[victim.id] = now
+                                world.playSound(null, victim.x, victim.y, victim.z, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 0.5f, 2.0f)
+                            }
+                        }
                     }
                 }
             } else {
@@ -557,8 +577,28 @@ object EnchantmentEffects {
                         }
                     }
                 }
+            } else if (attacker is LivingEntity) {
+                val hits = (infinityHits[victim.id] ?: 0) + 1
+                if (hits >= 10) {
+                    victim.setInfinityBroken(true)
+                    infinityHits.remove(victim.id)
+                    infinityWindowStart.remove(victim.id)
+                    lastInfinityAlert.remove(victim.id)
+
+                    world.playSound(null, victim.x, victim.y, victim.z, SoundEvents.SHIELD_BREAK, SoundSource.HOSTILE, 1.0f, 1.0f)
+                    world.sendParticles(ParticleTypes.ENCHANTED_HIT, victim.x, victim.y + 1.0, victim.z, 30, 0.5, 0.5, 0.5, 0.2)
+                    
+                    return false
+                } else {
+                    infinityHits[victim.id] = hits
+                    val lastAlert = lastInfinityAlert[victim.id] ?: 0L
+                    if (now - lastAlert > 2000L) {
+                        lastInfinityAlert[victim.id] = now
+                        world.playSound(null, victim.x, victim.y, victim.z, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 0.5f, 2.0f)
+                    }
+                }
             } else {
-                // If the attacker isn't a player (e.g. environment or other mob), just play regular sound
+                // Environment damage or other non-entity sources
                 val lastAlert = lastInfinityAlert[victim.id] ?: 0L
                 if (now - lastAlert > 2000L) {
                     lastInfinityAlert[victim.id] = now
@@ -796,7 +836,7 @@ object EnchantmentEffects {
                 val horizSpeed = kotlin.math.sqrt(entity.deltaMovement.x * entity.deltaMovement.x + entity.deltaMovement.z * entity.deltaMovement.z)
                 if (horizSpeed < 0.2 && entity.onGround()) {
                     entity.setLunging(false)
-                    entity.setLungeCooldown(60)
+                    entity.setLungeCooldown(1)
                 } else {
                     val velocity = kotlin.math.ceil(2.0 * lunge.level).toDouble()
                     // Handle attributes safely
