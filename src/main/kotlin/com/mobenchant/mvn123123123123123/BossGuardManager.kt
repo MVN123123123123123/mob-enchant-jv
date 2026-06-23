@@ -83,8 +83,16 @@ object BossGuardManager {
                         break
                     }
 
+                    // Clear invalid targets
+                    if (guard.target is net.minecraft.world.entity.player.Player) {
+                        val p = guard.target as net.minecraft.world.entity.player.Player
+                        if (p.isCreative || p.isSpectator || !p.isAlive) {
+                            guard.target = null
+                        }
+                    }
+
                     // Attempt to track player
-                    val target = guard.target ?: world.players().minByOrNull { it.distanceToSqr(guard) }?.takeIf { it.distanceTo(guard) < 200.0 && it.isAlive && !it.isSpectator }
+                    val target = guard.target ?: world.players().minByOrNull { it.distanceToSqr(guard) }?.takeIf { it.distanceTo(guard) < 200.0 && it.isAlive && !it.isSpectator && !it.isCreative }
                     
                     if (target != null && target.isAlive) {
                         if (guard.target != target) guard.target = target

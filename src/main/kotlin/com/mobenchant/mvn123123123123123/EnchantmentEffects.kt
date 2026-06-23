@@ -127,6 +127,9 @@ object EnchantmentEffects {
         if (victim.id in processingDamage) return
         processingDamage.add(victim.id)
 
+        var accumulatedExtraDamage = 0.0f
+        var accumulatedMagicDamage = 0.0f
+
         try {
             for (enchant in enchants) {
                 if (!victim.isAlive) break
@@ -143,8 +146,7 @@ object EnchantmentEffects {
                         "density" -> {
                             val fallDist = attacker.fallDistance
                             if (fallDist > 0) {
-                                val extra = (fallDist * 0.5 * enchant.level).toFloat()
-                                victim.hurt(victim.damageSources().mobAttack(attacker), extra)
+                                accumulatedExtraDamage += (fallDist * 0.5 * enchant.level).toFloat()
                             }
                         }
 
@@ -156,7 +158,7 @@ object EnchantmentEffects {
                                 val newDamageTaken = baseDamage * (1.0f - newEffectiveness)
                                 val extra = newDamageTaken - damageTaken
                                 if (extra > 0.0f) {
-                                    victim.hurt(victim.damageSources().magic(), extra)
+                                    accumulatedMagicDamage += extra
                                 }
                             }
                         }
@@ -215,30 +217,26 @@ object EnchantmentEffects {
                         // --- AQUA AFFINITY: 5x damage when in water ---
                         "aqua_affinity" -> {
                             if (attacker.isInWater) {
-                                val extra = baseDamage * 4.0f
-                                victim.hurt(victim.damageSources().mobAttack(attacker), extra)
+                                accumulatedExtraDamage += baseDamage * 4.0f
                             }
                         }
 
                         // --- SHARPNESS: Extra flat damage ---
                         "sharpness" -> {
-                            val extra = (0.5 + 0.5 * enchant.level).toFloat()
-                            victim.hurt(victim.damageSources().mobAttack(attacker), extra)
+                            accumulatedExtraDamage += (0.5 + 0.5 * enchant.level).toFloat()
                         }
 
                         // --- SMITE: Extra damage to undead ---
                         "smite" -> {
                             if (victim.type in EnchantmentPool.UNDEAD_TYPES) {
-                                val extra = (2.5 * enchant.level).toFloat()
-                                victim.hurt(victim.damageSources().mobAttack(attacker), extra)
+                                accumulatedExtraDamage += (2.5 * enchant.level).toFloat()
                             }
                         }
 
                         // --- BANE OF ARTHROPODS: Extra damage + slowness to arthropods ---
                         "bane_of_arthropods" -> {
                             if (victim.type in EnchantmentPool.ARTHROPOD_TYPES) {
-                                val extra = (2.5 * enchant.level).toFloat()
-                                victim.hurt(victim.damageSources().mobAttack(attacker), extra)
+                                accumulatedExtraDamage += (2.5 * enchant.level).toFloat()
                                 val slowDur = (20 * (1 + Random.nextDouble() * 1.5 * enchant.level)).toInt()
                                 victim.addEffect(MobEffectInstance(MobEffects.SLOWNESS, slowDur, 3, false, true))
                             }
@@ -260,20 +258,18 @@ object EnchantmentEffects {
 
                         // --- POWER: Extra arrow damage ---
                         "power" -> {
-                            val isRangedShooter = EnchantmentPool.RANGED_SHOOTER_TYPES.contains(attacker.type)
+                            val isProjectile = source.directEntity is net.minecraft.world.entity.projectile.Projectile
+                            val isRangedShooter = EnchantmentPool.RANGED_SHOOTER_TYPES.contains(attacker.type) || isProjectile
                             if (isRangedShooter) {
-                                val isProjectile = source.directEntity is net.minecraft.world.entity.projectile.Projectile
                                 if (isProjectile) {
-                                    val extra = kotlin.math.ceil(baseDamage * 0.25f * (enchant.level + 1)).toFloat()
-                                    victim.hurt(victim.damageSources().mobAttack(attacker), extra)
+                                    accumulatedExtraDamage += kotlin.math.ceil(baseDamage * 0.25f * (enchant.level + 1)).toFloat()
                                 } else {
                                     val mainItem = attacker.mainHandItem.item
                                     val hasBow = mainItem is net.minecraft.world.item.BowItem || mainItem is net.minecraft.world.item.CrossbowItem
                                     if (!hasBow) {
                                         // Full charge damage base is 6.0
                                         val fullChargeBase = 6.0f
-                                        val extra = kotlin.math.ceil(fullChargeBase * 0.25f * (enchant.level + 1)).toFloat()
-                                        victim.hurt(victim.damageSources().mobAttack(attacker), extra)
+                                        accumulatedExtraDamage += kotlin.math.ceil(fullChargeBase * 0.25f * (enchant.level + 1)).toFloat()
                                     }
                                 }
                             }
@@ -281,7 +277,8 @@ object EnchantmentEffects {
 
                         // --- PUNCH: Extra knockback ---
                         "punch" -> {
-                            val isRangedShooter = EnchantmentPool.RANGED_SHOOTER_TYPES.contains(attacker.type)
+                            val isProjectile = source.directEntity is net.minecraft.world.entity.projectile.Projectile
+                            val isRangedShooter = EnchantmentPool.RANGED_SHOOTER_TYPES.contains(attacker.type) || isProjectile
                             if (isRangedShooter) {
                                 val dx = victim.x - attacker.x
                                 val dz = victim.z - attacker.z
@@ -293,7 +290,8 @@ object EnchantmentEffects {
 
                         // --- FLAME: Set target on fire ---
                         "flame" -> {
-                            val isRangedShooter = EnchantmentPool.RANGED_SHOOTER_TYPES.contains(attacker.type)
+                            val isProjectile = source.directEntity is net.minecraft.world.entity.projectile.Projectile
+                            val isRangedShooter = EnchantmentPool.RANGED_SHOOTER_TYPES.contains(attacker.type) || isProjectile
                             if (isRangedShooter) {
                                 victim.igniteForSeconds(5f)
                             }
@@ -302,8 +300,7 @@ object EnchantmentEffects {
                         // --- IMPALING: Extra damage to aquatic mobs ---
                         "impaling" -> {
                             if (victim.type in EnchantmentPool.AQUATIC_TYPES) {
-                                val extra = (2.5 * enchant.level).toFloat()
-                                victim.hurt(victim.damageSources().mobAttack(attacker), extra)
+                                accumulatedExtraDamage += (2.5 * enchant.level).toFloat()
                             }
                         }
 
@@ -327,7 +324,10 @@ object EnchantmentEffects {
                                 val distSq = attacker.distanceToSqr(victim)
                                 if (distSq < 16.0) {
                                     val strikeDamage = (2 + level).toFloat()
+                                    val oldInvuln = victim.invulnerableTime
+                                    victim.invulnerableTime = 0
                                     victim.hurt(victim.damageSources().mobAttack(attacker), strikeDamage)
+                                    victim.invulnerableTime = oldInvuln
                                     world.sendParticles(ParticleTypes.CRIT, victim.x, victim.y + 1.0, victim.z, 5, 0.3, 0.3, 0.3, 0.02)
                                     world.playSound(null, victim.x, victim.y, victim.z, SoundEvents.PLAYER_ATTACK_STRONG, SoundSource.HOSTILE, 0.8f, 1.0f)
                                 }
@@ -337,6 +337,20 @@ object EnchantmentEffects {
                 } catch (_: Exception) {
                     // Entity removed mid-processing
                 }
+            }
+
+            if (accumulatedExtraDamage > 0.0f) {
+                val oldInvuln = victim.invulnerableTime
+                victim.invulnerableTime = 0
+                victim.hurt(victim.damageSources().mobAttack(attacker), accumulatedExtraDamage)
+                victim.invulnerableTime = oldInvuln
+            }
+
+            if (accumulatedMagicDamage > 0.0f) {
+                val oldInvuln = victim.invulnerableTime
+                victim.invulnerableTime = 0
+                victim.hurt(victim.damageSources().magic(), accumulatedMagicDamage)
+                victim.invulnerableTime = oldInvuln
             }
         } finally {
             processingDamage.remove(victim.id)
@@ -466,7 +480,10 @@ object EnchantmentEffects {
             activeMultishots.add(victim.id)
             try {
                 val extraDamage = baseDamage * 2.0f
+                val oldInvuln = victim.invulnerableTime
+                victim.invulnerableTime = 0
                 victim.hurt(victim.damageSources().mobAttack(attacker), extraDamage)
+                victim.invulnerableTime = oldInvuln
                 world.sendParticles(ParticleTypes.CRIT, victim.x, victim.y + 1.0, victim.z, 10, 0.3, 0.5, 0.3, 0.05)
                 world.playSound(null, victim.x, victim.y, victim.z, SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.HOSTILE, 1.0f, 1.0f)
 
