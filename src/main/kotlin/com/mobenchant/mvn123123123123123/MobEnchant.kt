@@ -257,6 +257,9 @@ object MobEnchant : ModInitializer {
         // =================================================================
         ServerTickEvents.END_SERVER_TICK.register { server ->
             tickCounter++
+            
+            // Tick Boss Guards
+            BossGuardManager.tick(server)
 
             // Every tick — Continuous effects (Respiration, Depth Strider)
             for (world in server.allLevels) {
