@@ -112,6 +112,13 @@ object MobEnchantData {
     fun Entity.isLunging(): Boolean = getAttached(IS_LUNGING) == true
     fun Entity.setLunging(lunging: Boolean) = setAttached(IS_LUNGING, lunging)
 
+    val IS_FROZEN: AttachmentType<Boolean> = AttachmentRegistry.createPersistent(
+        Identifier.fromNamespaceAndPath(MOD_ID, "is_frozen"),
+        Codec.BOOL,
+    )
+    fun Entity.isFrozen(): Boolean = getAttached(IS_FROZEN) == true
+    fun Entity.setFrozen(frozen: Boolean) = setAttached(IS_FROZEN, frozen)
+
 
     val RESPIRATION_TICKS: AttachmentType<Int> = AttachmentRegistry.createPersistent(
         Identifier.fromNamespaceAndPath(MOD_ID, "respiration_ticks"),

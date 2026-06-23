@@ -3,6 +3,7 @@ package com.mobenchant.mvn123123123123123
 import com.mobenchant.mvn123123123123123.MobEnchantData.getMobEnchant
 import com.mobenchant.mvn123123123123123.MobEnchantData.getMobEnchantments
 import com.mobenchant.mvn123123123123123.MobEnchantData.getRespirationTicks
+import java.util.UUID
 import com.mobenchant.mvn123123123123123.MobEnchantData.isInfinityBroken
 import com.mobenchant.mvn123123123123123.MobEnchantData.setInfinityBroken
 import com.mobenchant.mvn123123123123123.MobEnchantData.setRespirationTicks
@@ -70,6 +71,10 @@ object EnchantmentEffects {
                     }
                     "respiration" -> {
                         // Handled in tickContinuousEffects
+                        val isBossEntity = entity is Mob && (BossEnchantHandler.isBoss(entity) || entity.entityTags().contains("boss_guard"))
+                        if (isBossEntity) {
+                            entity.addEffect(MobEffectInstance(MobEffects.SPEED, 20000000, enchant.level, false, false))
+                        }
                     }
                     "depth_strider" -> {
                         // Handled in tickContinuousEffects
@@ -216,8 +221,27 @@ object EnchantmentEffects {
 
                         // --- AQUA AFFINITY: 5x damage when in water ---
                         "aqua_affinity" -> {
-                            if (attacker.isInWater) {
+                            val isBossEntity = attacker is Mob && (BossEnchantHandler.isBoss(attacker) || attacker.entityTags().contains("boss_guard"))
+                            if (isBossEntity) {
+                                if (!attacker.onGround()) {
+                                    accumulatedExtraDamage += baseDamage * 4.0f // 5x total
+                                } else {
+                                    attacker.addEffect(MobEffectInstance(MobEffects.SLOWNESS, 60, 1, false, false))
+                                }
+                            } else if (attacker.isInWater) {
                                 accumulatedExtraDamage += baseDamage * 4.0f
+                            }
+                        }
+                        
+                        // --- FROST WALKER ---
+                        "frost_walker" -> {
+                            val isBossEntity = attacker is Mob && (BossEnchantHandler.isBoss(attacker) || attacker.entityTags().contains("boss_guard"))
+                            if (isBossEntity && victim is net.minecraft.world.entity.player.Player) {
+                                val dx = victim.x - attacker.x
+                                val dz = victim.z - attacker.z
+                                val dist = kotlin.math.sqrt(dx * dx + dz * dz).coerceAtLeast(0.1)
+                                val slideVec = net.minecraft.world.phys.Vec3((dx / dist) * 1.5, 0.0, (dz / dist) * 1.5)
+                                FrostWalkerSlideManager.freezePlayer(victim, slideVec)
                             }
                         }
 
@@ -786,12 +810,24 @@ object EnchantmentEffects {
     // ========================================================================
     // Cleanup — remove entity from tracking maps when they die
     // ========================================================================
-    fun onEntityDeath(entityId: Int) {
+    fun onEntityDeath(entityId: Int, entity: LivingEntity? = null) {
         lastInfinityAlert.remove(entityId)
         activeMultishots.remove(entityId)
         processingDamage.remove(entityId)
         infinityHits.remove(entityId)
         infinityWindowStart.remove(entityId)
+        
+        // Track guard deaths for boss soul_speed
+        if (entity is Mob && entity.entityTags().contains("boss_guard")) {
+            val bossTag = entity.entityTags().find { it.startsWith("boss_") }
+            if (bossTag != null) {
+                try {
+                    val uuid = UUID.fromString(bossTag.substring(5))
+                    val count = BossEnchantHandler.bossGuardsKilled[uuid] ?: 0
+                    BossEnchantHandler.bossGuardsKilled[uuid] = min(20, count + 1) // Cap at 20 (+40%)
+                } catch (_: Exception) { }
+            }
+        }
     }
 
     // ========================================================================

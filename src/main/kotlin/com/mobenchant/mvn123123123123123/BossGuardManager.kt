@@ -1,6 +1,7 @@
 package com.mobenchant.mvn123123123123123
 
 import com.mobenchant.mvn123123123123123.MobEnchantData.setMobEnchantments
+import com.mobenchant.mvn123123123123123.MobEnchantData.getMobEnchantments
 import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerLevel
@@ -19,52 +20,50 @@ object BossGuardManager {
     // Track guards by their UUID
     private val activeGuards = mutableSetOf<UUID>()
 
-    fun scheduleGuards(boss: Mob) {
-        // Schedule spawning 30 seconds (600 ticks) later
-        MobEnchant.scheduleTask(600) {
-            val world = boss.level() as? ServerLevel ?: return@scheduleTask
-            if (!boss.isAlive) return@scheduleTask // If boss is already dead, don't spawn guards
+    fun spawnGuards(boss: Mob, count: Int, falling: Boolean) {
+        val world = boss.level() as? ServerLevel ?: return
+        if (!boss.isAlive) return // If boss is already dead, don't spawn guards
 
-            val guardType = when (boss.type) {
-                EntityTypes.ENDER_DRAGON -> EntityTypes.ENDERMAN
-                EntityTypes.WITHER -> EntityTypes.WITHER_SKELETON
-                else -> null
-            }
+        val guardType = when (boss.type) {
+            EntityTypes.ENDER_DRAGON -> EntityTypes.ENDERMAN
+            EntityTypes.WITHER -> EntityTypes.WITHER_SKELETON
+            else -> null
+        }
 
-            if (guardType != null) {
-                for (i in 0 until 2) {
-                    val guard = guardType.create(world, EntitySpawnReason.COMMAND) as? Mob ?: continue
-                    
-                    // Position around the boss
-                    val offsetX = (world.random.nextDouble() - 0.5) * 4.0
-                    val offsetZ = (world.random.nextDouble() - 0.5) * 4.0
+        if (guardType != null) {
+            for (i in 0 until count) {
+                val guard = guardType.create(world, EntitySpawnReason.COMMAND) as? Mob ?: continue
+                
+                // Position around the boss
+                val offsetX = (world.random.nextDouble() - 0.5) * 4.0
+                val offsetZ = (world.random.nextDouble() - 0.5) * 4.0
+                if (falling) {
+                    guard.setPos(boss.x + offsetX, boss.y + 50.0, boss.z + offsetZ)
+                    guard.addTag("falling_guard")
+                    guard.isNoAi = true
+                } else {
                     guard.setPos(boss.x + offsetX, boss.y + 1.0, boss.z + offsetZ)
-
-                    // Equip Elytra and Rockets
-                    guard.setItemSlot(EquipmentSlot.CHEST, ItemStack(Items.ELYTRA))
-                    guard.setItemSlot(EquipmentSlot.MAINHAND, ItemStack(Items.FIREWORK_ROCKET))
-
-                    // Tag and track
-                    guard.addTag("boss_guard")
-                    
-                    // Give them the unmodified enchants so they are strong
-                    val guardEnchants = mutableListOf<MobEnchantment>()
-                    for (id in BossEnchantHandler.UNMODIFIED_ENCHANTS) {
-                        val def = EnchantmentPool.ALL.find { it.id == id }
-                        if (def != null) {
-                            guardEnchants.add(MobEnchantment(id = def.id, level = def.maxLevel, maxLevel = def.maxLevel, category = def.category))
-                        }
-                    }
-                    guard.setMobEnchantments(guardEnchants)
-                    NameplateManager.setEnchantedNameplate(guard, guardEnchants)
-
-                    world.addFreshEntity(guard)
-                    activeGuards.add(guard.uuid)
-                    
-                    // Spawn particles/sound for their arrival
-                    world.sendParticles(ParticleTypes.EXPLOSION, guard.x, guard.y + 1.0, guard.z, 5, 0.5, 0.5, 0.5, 0.1)
-                    world.playSound(null, guard.x, guard.y, guard.z, SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 0.5f, 1.0f)
                 }
+
+                // Equip Elytra and Rockets
+                guard.setItemSlot(EquipmentSlot.CHEST, ItemStack(Items.ELYTRA))
+                guard.setItemSlot(EquipmentSlot.MAINHAND, ItemStack(Items.FIREWORK_ROCKET))
+
+                // Tag and track
+                guard.addTag("boss_guard")
+                guard.addTag("boss_${boss.uuid}")
+                
+                // Give them the boss's exact enchants
+                val bossEnchants = boss.getMobEnchantments() ?: emptyList()
+                guard.setMobEnchantments(bossEnchants)
+                NameplateManager.setEnchantedNameplate(guard, bossEnchants)
+
+                world.addFreshEntity(guard)
+                activeGuards.add(guard.uuid)
+                
+                // Spawn particles/sound for their arrival
+                world.sendParticles(ParticleTypes.EXPLOSION, guard.x, guard.y + 1.0, guard.z, 5, 0.5, 0.5, 0.5, 0.1)
+                world.playSound(null, guard.x, guard.y, guard.z, SoundEvents.WITHER_SPAWN, SoundSource.HOSTILE, 0.5f, 1.0f)
             }
         }
     }
@@ -88,6 +87,16 @@ object BossGuardManager {
                         val p = guard.target as net.minecraft.world.entity.player.Player
                         if (p.isCreative || p.isSpectator || !p.isAlive) {
                             guard.target = null
+                        }
+                    }
+                    
+                    // Falling guards logic
+                    if (guard.entityTags().contains("falling_guard")) {
+                        if (guard.onGround()) {
+                            guard.removeTag("falling_guard")
+                            guard.isNoAi = false
+                        } else {
+                            continue // Wait until they touch the ground
                         }
                     }
 
@@ -119,6 +128,10 @@ object BossGuardManager {
                             val calculatedThreshold = (simDistance * 16.0) - 16.0 // 1 chunk buffer
                             val teleportThreshold = if (calculatedThreshold < 64.0) 64.0 else calculatedThreshold
 
+                            // Depth strider bonus
+                            val hasDepthStrider = guard.getMobEnchantments()?.any { it.id == "depth_strider" } ?: false
+                            val baseSpeedMult = if (hasDepthStrider) 1.2 else 1.0
+
                             // Distance based logic
                             if (dist > teleportThreshold) {
                                 // Teleport if verge of unloaded
@@ -126,7 +139,7 @@ object BossGuardManager {
                                 world.playSound(null, guard.x, guard.y, guard.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.HOSTILE, 1.0f, 1.0f)
                             } else if (dist > 15.0) {
                                 // Flight and rocket logic
-                                val speedMult = if (dist > 40.0) 1.5 else 0.8
+                                val speedMult = (if (dist > 40.0) 1.5 else 0.8) * baseSpeedMult
                                 val currentVel = guard.deltaMovement
                                 guard.deltaMovement = currentVel.add(normalizedDir.x * 0.1 * speedMult, (normalizedDir.y * 0.1 + 0.05) * speedMult, normalizedDir.z * 0.1 * speedMult)
                                 
@@ -140,7 +153,7 @@ object BossGuardManager {
                                 }
                             } else {
                                 // Close range: normal elytra glide/flight towards them, no rockets
-                                guard.deltaMovement = guard.deltaMovement.add(normalizedDir.x * 0.05, normalizedDir.y * 0.05, normalizedDir.z * 0.05)
+                                guard.deltaMovement = guard.deltaMovement.add(normalizedDir.x * 0.05 * baseSpeedMult, normalizedDir.y * 0.05 * baseSpeedMult, normalizedDir.z * 0.05 * baseSpeedMult)
                             }
                         }
                     } else {
