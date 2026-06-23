@@ -42,9 +42,19 @@ object EnchantmentRoller {
      * Pick [count] unique random enchantments from the pool, each with a rolled level.
      * Optionally exclude enchantments already present (by ID).
      */
-    fun rollEnchantments(count: Int, excludeIds: Set<String> = emptySet(), onlyDefensive: Boolean = false): List<MobEnchantment> {
+    fun rollEnchantments(
+        count: Int, 
+        excludeIds: Set<String> = emptySet(), 
+        onlyDefensive: Boolean = false,
+        entityType: net.minecraft.world.entity.EntityType<*>? = null
+    ): List<MobEnchantment> {
+        val isRanged = entityType != null && EnchantmentPool.RANGED_SHOOTER_TYPES.contains(entityType)
+        val rangedEnchants = setOf("power", "punch", "flame", "infinity", "multishot", "piercing", "quick_charge")
+
         val available = EnchantmentPool.ALL.filter { 
-            it.id !in excludeIds && (!onlyDefensive || (it.category == "defensive" && it.id != "infinity"))
+            it.id !in excludeIds && 
+            (!onlyDefensive || (it.category == "defensive" && it.id != "infinity")) &&
+            (isRanged || it.id !in rangedEnchants)
         }.toMutableList()
         
         val picked = mutableListOf<MobEnchantment>()

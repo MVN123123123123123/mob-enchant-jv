@@ -121,6 +121,7 @@ object EnchantmentEffects {
         baseDamage: Float,
         damageTaken: Float,
         blocked: Boolean,
+        source: net.minecraft.world.damagesource.DamageSource
     ) {
         // Recursion guard: prevent bonus damage from re-triggering offensive processing
         if (victim.id in processingDamage) return
@@ -257,24 +258,45 @@ object EnchantmentEffects {
                             victim.knockback(power, dx / dist, dz / dist, victim.damageSources().mobAttack(attacker), baseDamage)
                         }
 
-                        // --- POWER: Extra damage (ranged concept, applies to melee too) ---
+                        // --- POWER: Extra arrow damage ---
                         "power" -> {
-                            val extra = (0.5 * (enchant.level + 1)).toFloat()
-                            victim.hurt(victim.damageSources().mobAttack(attacker), extra)
+                            val isRangedShooter = EnchantmentPool.RANGED_SHOOTER_TYPES.contains(attacker.type)
+                            if (isRangedShooter) {
+                                val isProjectile = source.directEntity is net.minecraft.world.entity.projectile.Projectile
+                                if (isProjectile) {
+                                    val extra = kotlin.math.ceil(baseDamage * 0.25f * (enchant.level + 1)).toFloat()
+                                    victim.hurt(victim.damageSources().mobAttack(attacker), extra)
+                                } else {
+                                    val mainItem = attacker.mainHandItem.item
+                                    val hasBow = mainItem is net.minecraft.world.item.BowItem || mainItem is net.minecraft.world.item.CrossbowItem
+                                    if (!hasBow) {
+                                        // Full charge damage base is 6.0
+                                        val fullChargeBase = 6.0f
+                                        val extra = kotlin.math.ceil(fullChargeBase * 0.25f * (enchant.level + 1)).toFloat()
+                                        victim.hurt(victim.damageSources().mobAttack(attacker), extra)
+                                    }
+                                }
+                            }
                         }
 
                         // --- PUNCH: Extra knockback ---
                         "punch" -> {
-                            val dx = victim.x - attacker.x
-                            val dz = victim.z - attacker.z
-                            val dist = sqrt(dx * dx + dz * dz).coerceAtLeast(1.0)
-                            val power = 0.5 * enchant.level
-                            victim.knockback(power, dx / dist, dz / dist, victim.damageSources().mobAttack(attacker), baseDamage)
+                            val isRangedShooter = EnchantmentPool.RANGED_SHOOTER_TYPES.contains(attacker.type)
+                            if (isRangedShooter) {
+                                val dx = victim.x - attacker.x
+                                val dz = victim.z - attacker.z
+                                val dist = kotlin.math.sqrt(dx * dx + dz * dz).coerceAtLeast(1.0)
+                                val power = 0.5 * enchant.level
+                                victim.knockback(power, dx / dist, dz / dist, victim.damageSources().mobAttack(attacker), baseDamage)
+                            }
                         }
 
                         // --- FLAME: Set target on fire ---
                         "flame" -> {
-                            victim.igniteForSeconds(5f)
+                            val isRangedShooter = EnchantmentPool.RANGED_SHOOTER_TYPES.contains(attacker.type)
+                            if (isRangedShooter) {
+                                victim.igniteForSeconds(5f)
+                            }
                         }
 
                         // --- IMPALING: Extra damage to aquatic mobs ---
@@ -674,13 +696,14 @@ object EnchantmentEffects {
                 if (extra is Projectile) {
                     extra.owner = owner
                 }
+                extra.addTag("mobenchant_extra_projectile")
                 world.addFreshEntity(extra)
             } catch (_: Exception) { }
         }
     }
 
     // ========================================================================
-    // QUICK CHARGE RANGED — Spawn follow-up projectiles on a delay
+    // QUICK CHARGE RANGED — Simulate faster reload by shooting spaced-out extra projectiles
     // ========================================================================
     fun handleQuickChargeRanged(
         projectile: Projectile,
@@ -692,17 +715,51 @@ object EnchantmentEffects {
         val vel = projectile.deltaMovement
         val typeId = projectile.type
 
+        // To simulate a faster reload (and not a "minigun"), we space the extra shots out 
+        // over the duration of their normal attack cooldown.
+        // Level 1: +1 shot (15 ticks later)
+        // Level 2: +2 shots (10, 20 ticks later)
+        // Level 3: +3 shots (8, 16, 24 ticks later)
+        
+        val spacing = when (level) {
+            1 -> 15
+            2 -> 10
+            else -> 8
+        }
+
         for (j in 1..level) {
-            val delay = (10 - level * 2) * j
-            MobEnchant.scheduleTask(delay.coerceAtLeast(1)) {
+            val delay = spacing * j
+            MobEnchant.scheduleTask(delay) {
                 if (!owner.isAlive) return@scheduleTask
                 try {
                     val extra = typeId.create(world, net.minecraft.world.entity.EntitySpawnReason.COMMAND) ?: return@scheduleTask
                     extra.setPos(owner.x, owner.eyeY, owner.z)
-                    extra.deltaMovement = vel
+                    
+                    // We also slightly adjust the aim towards the target if they still have one, 
+                    // otherwise just fire in the same direction as the original
+                    val target = owner.target
+                    if (target != null && target.isAlive) {
+                        val dx = target.x - owner.x
+                        val dy = target.eyeY - 0.2 - owner.eyeY
+                        val dz = target.z - owner.z
+                        val dist = kotlin.math.sqrt(dx * dx + dz * dz)
+                        
+                        val speed = vel.length()
+                        
+                        // Basic ballistic trajectory adjustment
+                        extra.deltaMovement = net.minecraft.world.phys.Vec3(
+                            (dx / dist) * speed,
+                            (dy / dist) * speed + 0.1,
+                            (dz / dist) * speed
+                        )
+                    } else {
+                        extra.deltaMovement = vel
+                    }
+                    
                     if (extra is Projectile) {
                         extra.owner = owner
                     }
+                    extra.addTag("mobenchant_extra_projectile")
                     world.addFreshEntity(extra)
                 } catch (_: Exception) { }
             }
@@ -849,7 +906,7 @@ object EnchantmentEffects {
                     var hitSomeone = false
                     
                     for (victim in victims) {
-                        if (victim is Mob && victim.target == entity) continue
+                        if (victim is Mob && entity is Mob && victim.target == entity.target && victim != entity.target) continue // Skip allies hitting same target, but hurt actual enemies
                         victim.hurt(entity.damageSources().mobAttack(entity), damage)
                     }
                     

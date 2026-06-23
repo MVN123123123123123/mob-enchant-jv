@@ -61,11 +61,18 @@ object MobEnchant : ModInitializer {
 
             entity.markAsRolled()
 
+            // Boss check & specialized enchantment path
+            if (BossEnchantHandler.isBoss(entity)) {
+                BossEnchantHandler.onBossSpawn(entity)
+                logger.debug("[Mob Enchant] Enchanted boss ${entity.type} with 5 max-level enchantments")
+                return@register
+            }
+
             // 1-in-6 chance to become enchanted
             if (Random.nextInt(EnchantmentPool.ENCHANT_CHANCE) != 0) return@register
 
             val enchantCount = EnchantmentRoller.rollEnchantCount()
-            val enchantList = EnchantmentRoller.rollEnchantments(enchantCount, onlyDefensive = !entity.canDealDamage())
+            val enchantList = EnchantmentRoller.rollEnchantments(enchantCount, onlyDefensive = !entity.canDealDamage(), entityType = entity.type)
 
             entity.setMobEnchantments(enchantList)
             NameplateManager.setEnchantedNameplate(entity, enchantList)
@@ -80,6 +87,9 @@ object MobEnchant : ModInitializer {
         ServerEntityEvents.ENTITY_LOAD.register { entity, world ->
             if (entity !is Projectile) return@register
             if (world !is ServerLevel) return@register
+            
+            // Prevent infinite recursion: do not process projectiles spawned by our own enchants
+            if (entity.entityTags().contains("mobenchant_extra_projectile")) return@register
 
             val owner = entity.owner
             if (owner !is Mob) return@register
@@ -163,7 +173,7 @@ object MobEnchant : ModInitializer {
             if (attacker is Mob && attacker.isAlive) {
                 val attackerEnchants = attacker.getMobEnchantments()
                 if (!attackerEnchants.isNullOrEmpty()) {
-                    EnchantmentEffects.handleOffensiveHit(entity, attacker, attackerEnchants, world, baseDamage, damageTaken, blocked)
+                    EnchantmentEffects.handleOffensiveHit(entity, attacker, attackerEnchants, world, baseDamage, damageTaken, blocked, source)
 
                     // Mending: heal attacker when dealing damage
                     EnchantmentEffects.handleMending(attacker, damageTaken)

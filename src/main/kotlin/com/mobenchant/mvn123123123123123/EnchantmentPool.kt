@@ -104,7 +104,7 @@ object EnchantmentPool {
         EntityTypes.ZOMBIE, EntityTypes.ZOMBIE_VILLAGER, EntityTypes.HUSK,
         EntityTypes.DROWNED, EntityTypes.SKELETON, EntityTypes.STRAY,
         EntityTypes.WITHER_SKELETON, EntityTypes.ZOMBIFIED_PIGLIN,
-        EntityTypes.PHANTOM, EntityTypes.WITHER, EntityTypes.ZOGLIN,
+        EntityTypes.PHANTOM, EntityTypes.ZOGLIN,
         EntityTypes.SKELETON_HORSE, EntityTypes.ZOMBIE_HORSE, EntityTypes.BOGGED,
     )
 
@@ -126,7 +126,7 @@ object EnchantmentPool {
     val RANGED_SHOOTER_TYPES: Set<EntityType<*>> = setOf(
         EntityTypes.SKELETON, EntityTypes.STRAY, EntityTypes.BOGGED,
         EntityTypes.PIGLIN, EntityTypes.WITCH,
-        EntityTypes.ENDER_DRAGON, EntityTypes.WITHER, EntityTypes.PILLAGER,
+        EntityTypes.PILLAGER,
     )
 
     // ========================================================================
