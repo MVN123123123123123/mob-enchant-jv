@@ -6,8 +6,12 @@
 		"ExampleClientMixin",
 		"ArmedEntityRenderStateMixin",
 		"EyesLayerMixin",
+		"LivingEntityRendererAccessor",
 		"EndermanRendererMixin",
-		"WitherSkeletonRendererMixin"
+		"WitherSkeletonRendererMixin",
+		"EndermanRenderStateMixin",
+		"EndermanModelMixin",
+		"LivingEntityRendererMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

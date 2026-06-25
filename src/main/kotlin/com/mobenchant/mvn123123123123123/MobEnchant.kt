@@ -107,7 +107,7 @@ object MobEnchant : ModInitializer {
         // =================================================================
         ServerLivingEntityEvents.ALLOW_DAMAGE.register { entity, source, amount ->
             // Prevent frozen players/entities from taking damage or knockback
-            if (entity.isFrozen()) return@register false
+            if (FrostWalkerSlideManager.frozenPlayers.containsKey(entity.uuid)) return@register false
             
             if (entity !is Mob) return@register true
             val world = entity.level()

@@ -19,10 +19,28 @@ object FrostWalkerSlideManager {
         player.addEffect(MobEffectInstance(MobEffects.SLOWNESS, 60, 255, false, false))
         
         // Mark them as frozen so custom movements (like lunge) know to abort
-        player.setFrozen(true)
+        // player.setFrozen(true) // Removed, handled by map to prevent perm invuln
     }
 
+    data class IceRecord(val dimension: net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level>, val pos: net.minecraft.core.BlockPos, val originalState: net.minecraft.world.level.block.state.BlockState, var expireTime: Long)
+    val temporaryIce = mutableListOf<IceRecord>()
+
     fun tick(server: MinecraftServer) {
+        val currentTime = server.tickCount.toLong()
+        
+        // Handle expiring blue ice
+        val iceIterator = temporaryIce.iterator()
+        while(iceIterator.hasNext()) {
+            val record = iceIterator.next()
+            if (currentTime >= record.expireTime) {
+                val world = server.getLevel(record.dimension)
+                if (world != null && world.getBlockState(record.pos).block == Blocks.BLUE_ICE) {
+                    world.setBlockAndUpdate(record.pos, record.originalState)
+                }
+                iceIterator.remove()
+            }
+        }
+
         val playersToRemove = mutableListOf<UUID>()
 
         for ((uuid, velocity) in frozenPlayers) {
@@ -34,28 +52,30 @@ object FrostWalkerSlideManager {
                     
                     if (!player.isAlive || velocity.length() < 0.05) {
                         playersToRemove.add(uuid)
-                        player.setFrozen(false)
                         player.removeEffect(MobEffects.SLOWNESS)
                         break
                     }
                     
-                    // Force position update to lock them onto the slide trajectory
-                    val nextX = player.x + velocity.x
-                    // Let gravity act normally, but force horizontal slide
-                    player.setPos(nextX, player.y, player.z + velocity.z)
-                    // Zero out delta movement so they don't get shot into the sky by knockback
-                    player.deltaMovement = Vec3(0.0, player.deltaMovement.y.coerceAtMost(0.0), 0.0)
+                    // Apply velocity directly to deltaMovement so the client predicts it smoothly
+                    player.deltaMovement = Vec3(velocity.x, player.deltaMovement.y.coerceAtMost(0.0), velocity.z)
                     player.hurtMarked = true
                     
                     // Place temporary blue ice under feet
                     val pos = player.blockPosition().below()
-                    if (world.isEmptyBlock(pos) || world.getBlockState(pos).isAir || world.getBlockState(pos).canBeReplaced()) {
-                        world.setBlockAndUpdate(pos, Blocks.BLUE_ICE.defaultBlockState())
-                        // Schedule removal of blue ice
-                        MobEnchant.scheduleTask(40) {
-                            if (world.getBlockState(pos).block == Blocks.BLUE_ICE) {
-                                world.setBlockAndUpdate(pos, Blocks.AIR.defaultBlockState())
-                            }
+                    val currentState = world.getBlockState(pos)
+                    val dim = world.dimension()
+                    
+                    if (currentState.block != Blocks.BLUE_ICE) {
+                        // Don't replace unbreakable blocks or entities (like chests)
+                        if (currentState.getDestroySpeed(world, pos) >= 0.0f && world.getBlockEntity(pos) == null) {
+                            temporaryIce.add(IceRecord(dim, pos, currentState, currentTime + 40))
+                            world.setBlockAndUpdate(pos, Blocks.BLUE_ICE.defaultBlockState())
+                        }
+                    } else {
+                        // Extend expiration time if it's already temporary ice
+                        val record = temporaryIce.find { it.dimension == dim && it.pos == pos }
+                        if (record != null) {
+                            record.expireTime = currentTime + 40
                         }
                     }
 

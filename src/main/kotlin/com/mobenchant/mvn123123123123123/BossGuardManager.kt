@@ -130,6 +130,9 @@ object BossGuardManager {
                             continue // Wait until they touch the ground
                         }
                     }
+                    
+                    // Reset fall distance unconditionally for all flying guards to prevent them taking kinetic/fall damage when swooping
+                    guard.fallDistance = 0.0
 
                     // Attempt to track player
                     val target = guard.target ?: world.players().minByOrNull { it.distanceToSqr(guard) }?.takeIf { it.distanceTo(guard) < 200.0 && it.isAlive && !it.isSpectator && !it.isCreative }
@@ -141,9 +144,7 @@ object BossGuardManager {
                         val dir = target.position().subtract(guard.position())
                         val length = dir.length()
                         if (length > 0) {
-                            val normalizedDir = dir.normalize()
-
-                            // Set fall flying visually if possible (reflection)
+                            // Visual flying using fall flying flag (7) - ALWAYS when targeting
                             try {
                                 val setSharedFlagMethod = net.minecraft.world.entity.Entity::class.java.getDeclaredMethod("setSharedFlag", Int::class.java, Boolean::class.java)
                                 setSharedFlagMethod.isAccessible = true
@@ -174,10 +175,10 @@ object BossGuardManager {
                                 guardStates[uuid] = GuardState.CIRCLING
                             } else {
                                 if (state == GuardState.CIRCLING) {
-                                    // Calculate target circle position: 15 blocks horizontal radius, 20 blocks up
-                                    val targetX = target.x + kotlin.math.cos(angle) * 15.0
+                                    // Calculate target circle position: 30 blocks horizontal radius, 20 blocks up
+                                    val targetX = target.x + kotlin.math.cos(angle) * 30.0
                                     val targetY = target.y + 20.0
-                                    val targetZ = target.z + kotlin.math.sin(angle) * 15.0
+                                    val targetZ = target.z + kotlin.math.sin(angle) * 30.0
                                     
                                     val circlePos = net.minecraft.world.phys.Vec3(targetX, targetY, targetZ)
                                     val circleDir = circlePos.subtract(guard.position())
@@ -185,11 +186,11 @@ object BossGuardManager {
                                         val normalizedCircleDir = circleDir.normalize()
                                         val currentVel = guard.deltaMovement
                                         // Smooth glide towards circle pos
-                                        guard.deltaMovement = currentVel.add(normalizedCircleDir.x * 0.05 * baseSpeedMult, normalizedCircleDir.y * 0.05 * baseSpeedMult, normalizedCircleDir.z * 0.05 * baseSpeedMult).scale(0.9)
+                                        guard.deltaMovement = currentVel.add(normalizedCircleDir.x * 0.15 * baseSpeedMult, normalizedCircleDir.y * 0.15 * baseSpeedMult, normalizedCircleDir.z * 0.15 * baseSpeedMult).scale(0.9)
                                     }
                                     
                                     // Slowly rotate the circle angle
-                                    angle += 0.02 * baseSpeedMult
+                                    angle += 0.05 * baseSpeedMult
                                     guardCircleAngles[uuid] = angle
                                     
                                     // Randomly switch to charging
@@ -216,6 +217,11 @@ object BossGuardManager {
                                     // If close enough or hit the ground, switch back to CIRCLING
                                     if (dist < 3.0 || guard.onGround() || guard.horizontalCollision) {
                                         guardStates[uuid] = GuardState.CIRCLING
+                                        
+                                        // Update the circle angle to make them swoop past the player instead of turning around
+                                        val vec = guard.position().subtract(target.position())
+                                        val currentAngle = kotlin.math.atan2(vec.z, vec.x)
+                                        guardCircleAngles[uuid] = currentAngle + Math.PI
                                     }
                                 }
                             }

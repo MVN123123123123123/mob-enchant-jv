@@ -1,0 +1,7 @@
+[15:30:01] [main/INFO]: [STDERR]: java.lang.ClassNotFoundException: net.minecraft.client.model.EndermanModel
+[15:30:01] [main/INFO]: [STDERR]: 	at java.base/jdk.internal.loader.BuiltinClassLoader.loadClass(BuiltinClassLoader.java:580)
+[15:30:01] [main/INFO]: [STDERR]: 	at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:490)
+[15:30:01] [main/INFO]: [STDERR]: 	at java.base/java.lang.Class.forName0(Native Method)
+[15:30:01] [main/INFO]: [STDERR]: 	at java.base/java.lang.Class.forName(Class.java:467)
+[15:30:01] [main/INFO]: [STDERR]: 	at java.base/java.lang.Class.forName(Class.java:458)
+[15:30:01] [main/INFO]: [STDERR]: 	at FindMethods.main(FindMethods.java:6)
