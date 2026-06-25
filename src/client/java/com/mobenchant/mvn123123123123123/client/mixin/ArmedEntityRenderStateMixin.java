@@ -1,6 +1,5 @@
 package com.mobenchant.mvn123123123123123.client.mixin;
 
-import com.mobenchant.mvn123123123123123.MobEnchantData;
 import net.minecraft.client.renderer.entity.state.ArmedEntityRenderState;
 import net.minecraft.client.renderer.item.ItemModelResolver;
 import net.minecraft.world.entity.LivingEntity;

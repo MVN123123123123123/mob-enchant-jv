@@ -15,9 +15,8 @@ object FrostWalkerSlideManager {
 
     fun freezePlayer(player: Player, initialVelocity: Vec3) {
         frozenPlayers[player.uuid] = initialVelocity
-        // Add strong effects to disable manual walking/jumping
+        // Add strong effects to disable manual walking
         player.addEffect(MobEffectInstance(MobEffects.SLOWNESS, 60, 255, false, false))
-        player.addEffect(MobEffectInstance(MobEffects.JUMP_BOOST, 60, 128, false, false))
         
         // Mark them as frozen so custom movements (like lunge) know to abort
         player.setFrozen(true)
@@ -37,7 +36,6 @@ object FrostWalkerSlideManager {
                         playersToRemove.add(uuid)
                         player.setFrozen(false)
                         player.removeEffect(MobEffects.SLOWNESS)
-                        player.removeEffect(MobEffects.JUMP_BOOST)
                         break
                     }
                     
@@ -45,6 +43,8 @@ object FrostWalkerSlideManager {
                     val nextX = player.x + velocity.x
                     // Let gravity act normally, but force horizontal slide
                     player.setPos(nextX, player.y, player.z + velocity.z)
+                    // Zero out delta movement so they don't get shot into the sky by knockback
+                    player.deltaMovement = Vec3(0.0, player.deltaMovement.y.coerceAtMost(0.0), 0.0)
                     player.hurtMarked = true
                     
                     // Place temporary blue ice under feet
@@ -64,7 +64,6 @@ object FrostWalkerSlideManager {
                     
                     // Re-apply effects just in case
                     player.addEffect(MobEffectInstance(MobEffects.SLOWNESS, 10, 255, false, false, false))
-                    player.addEffect(MobEffectInstance(MobEffects.JUMP_BOOST, 10, 128, false, false, false))
                     
                     break
                 }

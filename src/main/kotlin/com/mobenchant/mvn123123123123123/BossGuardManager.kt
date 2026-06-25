@@ -2,6 +2,7 @@ package com.mobenchant.mvn123123123123123
 
 import com.mobenchant.mvn123123123123123.MobEnchantData.setMobEnchantments
 import com.mobenchant.mvn123123123123123.MobEnchantData.getMobEnchantments
+import com.mobenchant.mvn123123123123123.MobEnchantData.markAsRolled
 import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerLevel
@@ -13,14 +14,22 @@ import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.Mob
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
+import net.minecraft.world.effect.MobEffectInstance
+import net.minecraft.world.effect.MobEffects
 import java.util.UUID
 
 object BossGuardManager {
 
+    const val DEBUG_HIGHLIGHT_GUARDS = false
+
+    enum class GuardState { CIRCLING, CHARGING }
+    private val guardStates = mutableMapOf<UUID, GuardState>()
+    private val guardCircleAngles = mutableMapOf<UUID, Double>()
+
     // Track guards by their UUID
     private val activeGuards = mutableSetOf<UUID>()
 
-    fun spawnGuards(boss: Mob, count: Int, falling: Boolean) {
+    fun spawnGuards(boss: Mob, count: Int, falling: Boolean, enchanted: Boolean = !falling) {
         val world = boss.level() as? ServerLevel ?: return
         if (!boss.isAlive) return // If boss is already dead, don't spawn guards
 
@@ -40,7 +49,6 @@ object BossGuardManager {
                 if (falling) {
                     guard.setPos(boss.x + offsetX, boss.y + 50.0, boss.z + offsetZ)
                     guard.addTag("falling_guard")
-                    guard.isNoAi = true
                 } else {
                     guard.setPos(boss.x + offsetX, boss.y + 1.0, boss.z + offsetZ)
                 }
@@ -53,13 +61,30 @@ object BossGuardManager {
                 guard.addTag("boss_guard")
                 guard.addTag("boss_${boss.uuid}")
                 
-                // Give them the boss's exact enchants
-                val bossEnchants = boss.getMobEnchantments() ?: emptyList()
-                guard.setMobEnchantments(bossEnchants)
-                NameplateManager.setEnchantedNameplate(guard, bossEnchants)
+                // Mark as rolled so ENTITY_LOAD doesn't overwrite it with random enchants
+                guard.markAsRolled()
 
-                world.addFreshEntity(guard)
+                if (enchanted) {
+                    // Initial guards get the boss's exact enchants
+                    val bossEnchants = boss.getMobEnchantments() ?: emptyList()
+                    guard.setMobEnchantments(bossEnchants)
+
+                    world.addFreshEntity(guard)
+                    
+                    // Add nameplate and apply passive boosts after adding to world so passengers apply correctly
+                    NameplateManager.setEnchantedNameplate(guard, bossEnchants)
+                    EnchantmentEffects.applyPassiveBoosts(guard, bossEnchants)
+                } else {
+                    // Falling guards get NO enchants, just the standard health nameplate
+                    guard.setMobEnchantments(emptyList())
+                    world.addFreshEntity(guard)
+                    NameplateManager.updateHealthNameplate(guard)
+                }
                 activeGuards.add(guard.uuid)
+
+                if (DEBUG_HIGHLIGHT_GUARDS) {
+                    guard.addEffect(MobEffectInstance(MobEffects.GLOWING, -1, 0, false, false))
+                }
                 
                 // Spawn particles/sound for their arrival
                 world.sendParticles(ParticleTypes.EXPLOSION, guard.x, guard.y + 1.0, guard.z, 5, 0.5, 0.5, 0.5, 0.1)
@@ -94,8 +119,14 @@ object BossGuardManager {
                     if (guard.entityTags().contains("falling_guard")) {
                         if (guard.onGround()) {
                             guard.removeTag("falling_guard")
-                            guard.isNoAi = false
                         } else {
+                            guard.fallDistance = 0.0 // Prevent taking fall damage when they land
+                            
+                            // Spawn bright meteor-like trail particles
+                            world.sendParticles(ParticleTypes.END_ROD, guard.x, guard.y + 1.0, guard.z, 2, 0.2, 0.5, 0.2, 0.0)
+                            world.sendParticles(ParticleTypes.FLAME, guard.x, guard.y + 1.0, guard.z, 5, 0.3, 0.8, 0.3, 0.05)
+                            world.sendParticles(ParticleTypes.LAVA, guard.x, guard.y + 1.0, guard.z, 1, 0.2, 0.2, 0.2, 0.0)
+                            
                             continue // Wait until they touch the ground
                         }
                     }
@@ -132,28 +163,61 @@ object BossGuardManager {
                             val hasDepthStrider = guard.getMobEnchantments()?.any { it.id == "depth_strider" } ?: false
                             val baseSpeedMult = if (hasDepthStrider) 1.2 else 1.0
 
+                            val state = guardStates.getOrDefault(uuid, GuardState.CIRCLING)
+                            var angle = guardCircleAngles.getOrDefault(uuid, world.random.nextDouble() * Math.PI * 2)
+
                             // Distance based logic
                             if (dist > teleportThreshold) {
                                 // Teleport if verge of unloaded
-                                guard.teleportTo(target.x, target.y + 10.0, target.z)
+                                guard.teleportTo(target.x, target.y + 20.0, target.z)
                                 world.playSound(null, guard.x, guard.y, guard.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.HOSTILE, 1.0f, 1.0f)
-                            } else if (dist > 15.0) {
-                                // Flight and rocket logic
-                                val speedMult = (if (dist > 40.0) 1.5 else 0.8) * baseSpeedMult
-                                val currentVel = guard.deltaMovement
-                                guard.deltaMovement = currentVel.add(normalizedDir.x * 0.1 * speedMult, (normalizedDir.y * 0.1 + 0.05) * speedMult, normalizedDir.z * 0.1 * speedMult)
-                                
-                                // Spam rocket if > 40, moderate if 15-40
-                                val tickChance = if (dist > 40.0) 10 else 40
-                                if (server.tickCount % tickChance == 0) {
-                                    world.playSound(null, guard.x, guard.y, guard.z, SoundEvents.FIREWORK_ROCKET_LAUNCH, SoundSource.HOSTILE, 1.0f, 1.0f)
-                                    world.sendParticles(ParticleTypes.FIREWORK, guard.x, guard.y, guard.z, 5, 0.2, 0.2, 0.2, 0.05)
-                                    // Additional boost
-                                    guard.deltaMovement = guard.deltaMovement.add(normalizedDir.scale(0.5 * speedMult))
-                                }
+                                guardStates[uuid] = GuardState.CIRCLING
                             } else {
-                                // Close range: normal elytra glide/flight towards them, no rockets
-                                guard.deltaMovement = guard.deltaMovement.add(normalizedDir.x * 0.05 * baseSpeedMult, normalizedDir.y * 0.05 * baseSpeedMult, normalizedDir.z * 0.05 * baseSpeedMult)
+                                if (state == GuardState.CIRCLING) {
+                                    // Calculate target circle position: 15 blocks horizontal radius, 20 blocks up
+                                    val targetX = target.x + kotlin.math.cos(angle) * 15.0
+                                    val targetY = target.y + 20.0
+                                    val targetZ = target.z + kotlin.math.sin(angle) * 15.0
+                                    
+                                    val circlePos = net.minecraft.world.phys.Vec3(targetX, targetY, targetZ)
+                                    val circleDir = circlePos.subtract(guard.position())
+                                    if (circleDir.length() > 0) {
+                                        val normalizedCircleDir = circleDir.normalize()
+                                        val currentVel = guard.deltaMovement
+                                        // Smooth glide towards circle pos
+                                        guard.deltaMovement = currentVel.add(normalizedCircleDir.x * 0.05 * baseSpeedMult, normalizedCircleDir.y * 0.05 * baseSpeedMult, normalizedCircleDir.z * 0.05 * baseSpeedMult).scale(0.9)
+                                    }
+                                    
+                                    // Slowly rotate the circle angle
+                                    angle += 0.02 * baseSpeedMult
+                                    guardCircleAngles[uuid] = angle
+                                    
+                                    // Randomly switch to charging
+                                    if (world.random.nextInt(100) == 0) {
+                                        guardStates[uuid] = GuardState.CHARGING
+                                        world.playSound(null, guard.x, guard.y, guard.z, SoundEvents.PHANTOM_SWOOP, SoundSource.HOSTILE, 1.0f, 1.0f)
+                                    }
+                                } else { // CHARGING
+                                    val chargeDir = target.position().add(0.0, target.eyeHeight.toDouble() / 2.0, 0.0).subtract(guard.position())
+                                    if (chargeDir.length() > 0) {
+                                        val normalizedChargeDir = chargeDir.normalize()
+                                        val speedMult = 2.0 * baseSpeedMult // Super fast charge
+                                        guard.deltaMovement = normalizedChargeDir.scale(speedMult)
+                                        
+                                        // Firework sounds and visual rocket trails
+                                        if (server.tickCount % 2 == 0) {
+                                            world.sendParticles(ParticleTypes.FIREWORK, guard.x, guard.y + 1.0, guard.z, 10, 0.2, 0.2, 0.2, 0.1)
+                                        }
+                                        if (server.tickCount % 10 == 0) {
+                                            world.playSound(null, guard.x, guard.y, guard.z, SoundEvents.FIREWORK_ROCKET_LAUNCH, SoundSource.HOSTILE, 1.0f, 1.0f)
+                                        }
+                                    }
+                                    
+                                    // If close enough or hit the ground, switch back to CIRCLING
+                                    if (dist < 3.0 || guard.onGround() || guard.horizontalCollision) {
+                                        guardStates[uuid] = GuardState.CIRCLING
+                                    }
+                                }
                             }
                         }
                     } else {

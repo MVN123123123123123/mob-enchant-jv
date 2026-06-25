@@ -5,7 +5,9 @@
 	"client": [
 		"ExampleClientMixin",
 		"ArmedEntityRenderStateMixin",
-		"EyesLayerMixin"
+		"EyesLayerMixin",
+		"EndermanRendererMixin",
+		"WitherSkeletonRendererMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

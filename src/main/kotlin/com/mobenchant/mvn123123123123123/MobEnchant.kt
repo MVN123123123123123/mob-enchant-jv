@@ -5,6 +5,7 @@ import com.mobenchant.mvn123123123123123.MobEnchantData.isAlreadyRolled
 import com.mobenchant.mvn123123123123123.MobEnchantData.markAsRolled
 import com.mobenchant.mvn123123123123123.MobEnchantData.setMobEnchantments
 import com.mobenchant.mvn123123123123123.MobEnchantData.canDealDamage
+import com.mobenchant.mvn123123123123123.MobEnchantData.isFrozen
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents
@@ -105,6 +106,9 @@ object MobEnchant : ModInitializer {
         // ALLOW_DAMAGE — Cancel damage for Infinity shield & Unbreaking revive
         // =================================================================
         ServerLivingEntityEvents.ALLOW_DAMAGE.register { entity, source, amount ->
+            // Prevent frozen players/entities from taking damage or knockback
+            if (entity.isFrozen()) return@register false
+            
             if (entity !is Mob) return@register true
             val world = entity.level()
             if (world !is ServerLevel) return@register true
