@@ -67,7 +67,9 @@ object MobEnchant : ModInitializer {
             // Boss check & specialized enchantment path
             if (BossEnchantHandler.isBoss(entity)) {
                 BossEnchantHandler.onBossSpawn(entity)
-                logger.debug("[Mob Enchant] Enchanted boss ${entity.type} with 5 max-level enchantments")
+                if (MobEnchantConfig.debugEnabled) {
+                    logger.info("[Mob Enchant] Enchanted boss ${entity.type} with 5 max-level enchantments")
+                }
                 return@register
             }
 
@@ -81,7 +83,9 @@ object MobEnchant : ModInitializer {
             NameplateManager.setEnchantedNameplate(entity, enchantList)
             EnchantmentEffects.applyPassiveBoosts(entity, enchantList)
 
-            logger.debug("[Mob Enchant] Enchanted ${entity.type} with ${enchantList.size} enchantments")
+            if (MobEnchantConfig.debugEnabled) {
+                logger.info("[Mob Enchant] Enchanted ${entity.type} with ${enchantList.size} enchantments")
+            }
         }
 
         // =================================================================
