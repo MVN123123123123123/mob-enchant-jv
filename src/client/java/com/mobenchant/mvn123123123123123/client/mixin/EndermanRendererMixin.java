@@ -18,7 +18,7 @@ public abstract class EndermanRendererMixin {
 
     @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/monster/EnderMan;Lnet/minecraft/client/renderer/entity/state/EndermanRenderState;F)V", at = @At("RETURN"))
     public void extractBossGuardState(net.minecraft.world.entity.monster.EnderMan entity, net.minecraft.client.renderer.entity.state.EndermanRenderState state, float f, CallbackInfo ci) {
-        if (entity.entityTags().contains("boss_guard")) {
+        if (entity.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST).is(net.minecraft.world.item.Items.ELYTRA)) {
             ((com.mobenchant.mvn123123123123123.client.BossGuardState) state).setBossGuard(true);
         }
     }

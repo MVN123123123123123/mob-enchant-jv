@@ -186,7 +186,37 @@ object BossGuardManager {
                                         val normalizedCircleDir = circleDir.normalize()
                                         val currentVel = guard.deltaMovement
                                         // Smooth glide towards circle pos
-                                        guard.deltaMovement = currentVel.add(normalizedCircleDir.x * 0.15 * baseSpeedMult, normalizedCircleDir.y * 0.15 * baseSpeedMult, normalizedCircleDir.z * 0.15 * baseSpeedMult).scale(0.9)
+                                        var newVel = currentVel.add(normalizedCircleDir.x * 0.15 * baseSpeedMult, normalizedCircleDir.y * 0.15 * baseSpeedMult, normalizedCircleDir.z * 0.15 * baseSpeedMult).scale(0.9)
+                                        
+                                        // Obstacle avoidance
+                                        val lookVec = newVel.normalize()
+                                        val endPos = guard.position().add(lookVec.scale(5.0))
+                                        val hitResult = world.clip(net.minecraft.world.level.ClipContext(guard.position(), endPos, net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, guard))
+                                        if (hitResult.type == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+                                            val dir = hitResult.direction
+                                            val avoidanceForce = net.minecraft.world.phys.Vec3(dir.stepX.toDouble(), dir.stepY.toDouble() + 0.5, dir.stepZ.toDouble()).normalize()
+                                            newVel = newVel.add(avoidanceForce.scale(1.5))
+                                        }
+                                        
+                                        guard.deltaMovement = newVel
+                                        
+                                        // Look at velocity vector
+                                        val horizontalDistance = kotlin.math.sqrt(newVel.x * newVel.x + newVel.z * newVel.z)
+                                        val targetYRot = (kotlin.math.atan2(newVel.z, newVel.x) * (180.0 / Math.PI)).toFloat() - 90.0f
+                                        val targetXRot = (-(kotlin.math.atan2(newVel.y, horizontalDistance) * (180.0 / Math.PI))).toFloat()
+                                        
+                                        guard.setYRot(targetYRot)
+                                        guard.setXRot(targetXRot)
+                                        guard.yBodyRot = targetYRot
+                                        guard.yHeadRot = targetYRot
+                                    }
+                                    
+                                    // Add firework rockets for circling so they look like they are flying
+                                    if (server.tickCount % 5 == 0) {
+                                        world.sendParticles(ParticleTypes.FIREWORK, guard.x, guard.y + 1.0, guard.z, 2, 0.1, 0.1, 0.1, 0.05)
+                                    }
+                                    if (server.tickCount % 40 == 0) {
+                                        world.playSound(null, guard.x, guard.y, guard.z, SoundEvents.FIREWORK_ROCKET_LAUNCH, SoundSource.HOSTILE, 0.3f, 1.0f)
                                     }
                                     
                                     // Slowly rotate the circle angle
@@ -201,9 +231,38 @@ object BossGuardManager {
                                 } else { // CHARGING
                                     val chargeDir = target.position().add(0.0, target.eyeHeight.toDouble() / 2.0, 0.0).subtract(guard.position())
                                     if (chargeDir.length() > 0) {
+                                        val currentVel = guard.deltaMovement
                                         val normalizedChargeDir = chargeDir.normalize()
                                         val speedMult = 2.0 * baseSpeedMult // Super fast charge
-                                        guard.deltaMovement = normalizedChargeDir.scale(speedMult)
+                                        val targetVel = normalizedChargeDir.scale(speedMult)
+                                        
+                                        // Smoothly interpolate velocity to curve towards the player
+                                        var newVel = currentVel.add(targetVel.subtract(currentVel).scale(0.15))
+                                        
+                                        // Obstacle avoidance
+                                        val lookVec = newVel.normalize()
+                                        val endPos = guard.position().add(lookVec.scale(5.0))
+                                        val hitResult = world.clip(net.minecraft.world.level.ClipContext(guard.position(), endPos, net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, guard))
+                                        if (hitResult.type == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+                                            val distToTarget = target.position().distanceTo(hitResult.location)
+                                            if (distToTarget > 4.0) { // Ignore ground near the target so they can still hit
+                                                val dir = hitResult.direction
+                                                val avoidanceForce = net.minecraft.world.phys.Vec3(dir.stepX.toDouble(), dir.stepY.toDouble() + 0.5, dir.stepZ.toDouble()).normalize()
+                                                newVel = newVel.add(avoidanceForce.scale(1.5))
+                                            }
+                                        }
+                                        
+                                        guard.deltaMovement = newVel
+                                        
+                                        // Look at the velocity vector for a smooth curve rotation
+                                        val horizontalDistance = kotlin.math.sqrt(newVel.x * newVel.x + newVel.z * newVel.z)
+                                        val targetYRot = (kotlin.math.atan2(newVel.z, newVel.x) * (180.0 / Math.PI)).toFloat() - 90.0f
+                                        val targetXRot = (-(kotlin.math.atan2(newVel.y, horizontalDistance) * (180.0 / Math.PI))).toFloat()
+                                        
+                                        guard.setYRot(targetYRot)
+                                        guard.setXRot(targetXRot)
+                                        guard.yBodyRot = targetYRot
+                                        guard.yHeadRot = targetYRot
                                         
                                         // Firework sounds and visual rocket trails
                                         if (server.tickCount % 2 == 0) {
