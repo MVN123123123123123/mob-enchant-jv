@@ -35,6 +35,9 @@ object MobEnchantCommands {
                 // /mobenchant info
                 .then(Commands.literal("info").executes { ctx -> cmdInfo(ctx) })
 
+                // /mobenchant debug
+                .then(Commands.literal("debug").executes { ctx -> cmdDebug(ctx) })
+
                 // /mobenchant clear
                 .then(Commands.literal("clear").executes { ctx -> cmdClear(ctx) })
 
@@ -176,6 +179,17 @@ object MobEnchantCommands {
             tell(ctx, Component.literal("  • ${NameplateManager.prettyName(e.id)}$lvlStr").withStyle(color))
         }
         tell(ctx, Component.literal("Power Score: ${EnchantmentRoller.calculatePowerScore(enchants)}").withStyle(ChatFormatting.DARK_GRAY))
+        return 1
+    }
+
+    // ========================================================================
+    // DEBUG — Toggle debug features
+    // ========================================================================
+    private fun cmdDebug(ctx: CommandContext<CommandSourceStack>): Int {
+        MobEnchantConfig.debugEnabled = !MobEnchantConfig.debugEnabled
+        MobEnchantConfig.save()
+        val status = if (MobEnchantConfig.debugEnabled) "enabled" else "disabled"
+        tell(ctx, Component.literal("").append(prefix()).append(Component.literal("Debug mode $status!").withStyle(ChatFormatting.GREEN)))
         return 1
     }
 

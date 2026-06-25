@@ -65,6 +65,8 @@ object BonusLootHandler {
             .append(Component.literal("] ").withStyle(ChatFormatting.DARK_GRAY))
             .append(Component.literal("+${bonusXP} bonus XP").withStyle(ChatFormatting.GOLD))
 
-        world.server.playerList.broadcastSystemMessage(msg, false)
+        if (MobEnchantConfig.debugEnabled) {
+            world.server.playerList.broadcastSystemMessage(msg, false)
+        }
     }
 }

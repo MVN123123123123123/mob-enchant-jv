@@ -512,13 +512,15 @@ object EnchantmentEffects {
                 world.playSound(null, victim.x, victim.y, victim.z, SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.HOSTILE, 1.0f, 1.0f)
 
                 // Broadcast critical hit message
-                val msg = net.minecraft.network.chat.Component.literal("")
-                    .append(net.minecraft.network.chat.Component.literal("✦ ").withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE, net.minecraft.ChatFormatting.BOLD))
-                    .append(net.minecraft.network.chat.Component.literal("Critical Multishot! ").withStyle(net.minecraft.ChatFormatting.RED))
-                    .append(net.minecraft.network.chat.Component.literal("An enchanted mob dealt ").withStyle(net.minecraft.ChatFormatting.GRAY))
-                    .append(net.minecraft.network.chat.Component.literal("3x damage").withStyle(net.minecraft.ChatFormatting.YELLOW))
-                    .append(net.minecraft.network.chat.Component.literal("!").withStyle(net.minecraft.ChatFormatting.GRAY))
-                world.server.playerList.broadcastSystemMessage(msg, false)
+                if (MobEnchantConfig.debugEnabled) {
+                    val msg = net.minecraft.network.chat.Component.literal("")
+                        .append(net.minecraft.network.chat.Component.literal("✦ ").withStyle(net.minecraft.ChatFormatting.LIGHT_PURPLE, net.minecraft.ChatFormatting.BOLD))
+                        .append(net.minecraft.network.chat.Component.literal("Critical Multishot! ").withStyle(net.minecraft.ChatFormatting.RED))
+                        .append(net.minecraft.network.chat.Component.literal("An enchanted mob dealt ").withStyle(net.minecraft.ChatFormatting.GRAY))
+                        .append(net.minecraft.network.chat.Component.literal("3x damage").withStyle(net.minecraft.ChatFormatting.YELLOW))
+                        .append(net.minecraft.network.chat.Component.literal("!").withStyle(net.minecraft.ChatFormatting.GRAY))
+                    world.server.playerList.broadcastSystemMessage(msg, false)
+                }
             } catch (_: Exception) { }
             activeMultishots.remove(victim.id)
         }

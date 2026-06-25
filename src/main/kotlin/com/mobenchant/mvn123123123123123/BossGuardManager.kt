@@ -17,14 +17,19 @@ import net.minecraft.world.item.Items
 import net.minecraft.world.effect.MobEffectInstance
 import net.minecraft.world.effect.MobEffects
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 object BossGuardManager {
 
-    const val DEBUG_HIGHLIGHT_GUARDS = false
+    val DEBUG_HIGHLIGHT_GUARDS get() = MobEnchantConfig.debugEnabled
 
     enum class GuardState { CIRCLING, CHARGING }
-    private val guardStates = mutableMapOf<UUID, GuardState>()
-    private val guardCircleAngles = mutableMapOf<UUID, Double>()
+    private val guardStates = ConcurrentHashMap<UUID, GuardState>()
+    val guardCircleAngles = ConcurrentHashMap<UUID, Double>()
+    val guardTargetRadii = ConcurrentHashMap<UUID, Double>()
+    val guardTargetHeights = ConcurrentHashMap<UUID, Double>()
+    val guardTargetSpeeds = ConcurrentHashMap<UUID, Double>()
+    val guardAttackCooldowns = ConcurrentHashMap<UUID, Int>()
 
     // Track guards by their UUID
     private val activeGuards = mutableSetOf<UUID>()
@@ -83,7 +88,7 @@ object BossGuardManager {
                 activeGuards.add(guard.uuid)
 
                 if (DEBUG_HIGHLIGHT_GUARDS) {
-                    guard.addEffect(MobEffectInstance(MobEffects.GLOWING, -1, 0, false, false))
+                    guard.addEffect(MobEffectInstance(MobEffects.GLOWING, 20000000, 0, false, false))
                 }
                 
                 // Spawn particles/sound for their arrival
@@ -105,6 +110,16 @@ object BossGuardManager {
                     if (!guard.isAlive) {
                         guardsToRemove.add(uuid)
                         break
+                    }
+
+                    if (DEBUG_HIGHLIGHT_GUARDS) {
+                        if (!guard.hasEffect(MobEffects.GLOWING)) {
+                            guard.addEffect(MobEffectInstance(MobEffects.GLOWING, 20000000, 0, false, false))
+                        }
+                    } else {
+                        if (guard.hasEffect(MobEffects.GLOWING)) {
+                            guard.removeEffect(MobEffects.GLOWING)
+                        }
                     }
 
                     // Clear invalid targets
@@ -173,12 +188,28 @@ object BossGuardManager {
                                 guard.teleportTo(target.x, target.y + 20.0, target.z)
                                 world.playSound(null, guard.x, guard.y, guard.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.HOSTILE, 1.0f, 1.0f)
                                 guardStates[uuid] = GuardState.CIRCLING
+                                guardAttackCooldowns[uuid] = world.random.nextInt(301) + 300 // 15-30s cooldown
                             } else {
                                 if (state == GuardState.CIRCLING) {
-                                    // Calculate target circle position: 30 blocks horizontal radius, 20 blocks up
-                                    val targetX = target.x + kotlin.math.cos(angle) * 30.0
-                                    val targetY = target.y + 20.0
-                                    val targetZ = target.z + kotlin.math.sin(angle) * 30.0
+                                    var attackCooldown = guardAttackCooldowns.getOrDefault(uuid, world.random.nextInt(301) + 300)
+                                    attackCooldown--
+                                    
+                                    // Change radius, height, and speed periodically (e.g., every 5 seconds = 100 ticks)
+                                    if (attackCooldown % 100 == 0) {
+                                        guardTargetRadii[uuid] = 15.0 + world.random.nextDouble() * 30.0 // 15 to 45 blocks horizontal
+                                        guardTargetHeights[uuid] = 10.0 + world.random.nextDouble() * 20.0 // 10 to 30 blocks vertical
+                                        guardTargetSpeeds[uuid] = 0.5 + world.random.nextDouble() * 1.5 // 0.5x to 2.0x speed multiplier
+                                    }
+                                    
+                                    val radius = guardTargetRadii.getOrDefault(uuid, 30.0)
+                                    val height = guardTargetHeights.getOrDefault(uuid, 20.0)
+                                    val dynamicSpeedMult = guardTargetSpeeds.getOrDefault(uuid, 1.0)
+                                    val finalSpeedMult = baseSpeedMult * dynamicSpeedMult
+                                    
+                                    // Calculate target circle position, capping height so they don't fly over the build limit
+                                    val targetX = target.x + kotlin.math.cos(angle) * radius
+                                    val targetY = Math.min(target.y + height, world.maxY.toDouble() - 10.0)
+                                    val targetZ = target.z + kotlin.math.sin(angle) * radius
                                     
                                     val circlePos = net.minecraft.world.phys.Vec3(targetX, targetY, targetZ)
                                     val circleDir = circlePos.subtract(guard.position())
@@ -186,16 +217,16 @@ object BossGuardManager {
                                         val normalizedCircleDir = circleDir.normalize()
                                         val currentVel = guard.deltaMovement
                                         // Smooth glide towards circle pos
-                                        var newVel = currentVel.add(normalizedCircleDir.x * 0.15 * baseSpeedMult, normalizedCircleDir.y * 0.15 * baseSpeedMult, normalizedCircleDir.z * 0.15 * baseSpeedMult).scale(0.9)
+                                        var newVel = currentVel.add(normalizedCircleDir.x * 0.15 * finalSpeedMult, normalizedCircleDir.y * 0.15 * finalSpeedMult, normalizedCircleDir.z * 0.15 * finalSpeedMult).scale(0.9)
                                         
                                         // Obstacle avoidance
                                         val lookVec = newVel.normalize()
-                                        val endPos = guard.position().add(lookVec.scale(5.0))
+                                        val endPos = guard.position().add(lookVec.scale(8.0))
                                         val hitResult = world.clip(net.minecraft.world.level.ClipContext(guard.position(), endPos, net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, guard))
                                         if (hitResult.type == net.minecraft.world.phys.HitResult.Type.BLOCK) {
                                             val dir = hitResult.direction
                                             val avoidanceForce = net.minecraft.world.phys.Vec3(dir.stepX.toDouble(), dir.stepY.toDouble() + 0.5, dir.stepZ.toDouble()).normalize()
-                                            newVel = newVel.add(avoidanceForce.scale(1.5))
+                                            newVel = newVel.add(avoidanceForce.scale(0.85))
                                         }
                                         
                                         guard.deltaMovement = newVel
@@ -220,13 +251,15 @@ object BossGuardManager {
                                     }
                                     
                                     // Slowly rotate the circle angle
-                                    angle += 0.05 * baseSpeedMult
+                                    angle += 0.05 * finalSpeedMult
                                     guardCircleAngles[uuid] = angle
                                     
-                                    // Randomly switch to charging
-                                    if (world.random.nextInt(100) == 0) {
+                                    // Switch to charging when cooldown reaches 0
+                                    if (attackCooldown <= 0) {
                                         guardStates[uuid] = GuardState.CHARGING
                                         world.playSound(null, guard.x, guard.y, guard.z, SoundEvents.PHANTOM_SWOOP, SoundSource.HOSTILE, 1.0f, 1.0f)
+                                    } else {
+                                        guardAttackCooldowns[uuid] = attackCooldown
                                     }
                                 } else { // CHARGING
                                     val chargeDir = target.position().add(0.0, target.eyeHeight.toDouble() / 2.0, 0.0).subtract(guard.position())
@@ -237,18 +270,18 @@ object BossGuardManager {
                                         val targetVel = normalizedChargeDir.scale(speedMult)
                                         
                                         // Smoothly interpolate velocity to curve towards the player
-                                        var newVel = currentVel.add(targetVel.subtract(currentVel).scale(0.15))
+                                        var newVel = currentVel.add(targetVel.subtract(currentVel).scale(0.25))
                                         
                                         // Obstacle avoidance
                                         val lookVec = newVel.normalize()
-                                        val endPos = guard.position().add(lookVec.scale(5.0))
+                                        val endPos = guard.position().add(lookVec.scale(8.0))
                                         val hitResult = world.clip(net.minecraft.world.level.ClipContext(guard.position(), endPos, net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, guard))
                                         if (hitResult.type == net.minecraft.world.phys.HitResult.Type.BLOCK) {
                                             val distToTarget = target.position().distanceTo(hitResult.location)
                                             if (distToTarget > 4.0) { // Ignore ground near the target so they can still hit
                                                 val dir = hitResult.direction
                                                 val avoidanceForce = net.minecraft.world.phys.Vec3(dir.stepX.toDouble(), dir.stepY.toDouble() + 0.5, dir.stepZ.toDouble()).normalize()
-                                                newVel = newVel.add(avoidanceForce.scale(1.5))
+                                                newVel = newVel.add(avoidanceForce.scale(0.85))
                                             }
                                         }
                                         
@@ -271,11 +304,23 @@ object BossGuardManager {
                                         if (server.tickCount % 10 == 0) {
                                             world.playSound(null, guard.x, guard.y, guard.z, SoundEvents.FIREWORK_ROCKET_LAUNCH, SoundSource.HOSTILE, 1.0f, 1.0f)
                                         }
+                                        
+                                        // Melee attack hit detection
+                                        if (guard.boundingBox.inflate(1.0).intersects(target.boundingBox)) {
+                                            guard.doHurtTarget(world, target)
+                                            // Bounce back to circling
+                                            guardStates[uuid] = GuardState.CIRCLING
+                                            guardAttackCooldowns[uuid] = world.random.nextInt(301) + 300 // Reset to 15-30s cooldown
+                                            val vec = guard.position().subtract(target.position())
+                                            val currentAngle = kotlin.math.atan2(vec.z, vec.x)
+                                            guardCircleAngles[uuid] = currentAngle + Math.PI
+                                        }
                                     }
                                     
-                                    // If close enough or hit the ground, switch back to CIRCLING
-                                    if (dist < 3.0 || guard.onGround() || guard.horizontalCollision) {
+                                    // If hit the ground, switch back to CIRCLING
+                                    if (guard.onGround() || guard.horizontalCollision) {
                                         guardStates[uuid] = GuardState.CIRCLING
+                                        guardAttackCooldowns[uuid] = world.random.nextInt(301) + 300 // Reset to 15-30s cooldown
                                         
                                         // Update the circle angle to make them swoop past the player instead of turning around
                                         val vec = guard.position().subtract(target.position())

@@ -58,6 +58,16 @@ object NameplateManager {
      */
     fun setEnchantedNameplate(entity: Entity, enchantList: List<MobEnchantment>) {
         try {
+            if (!MobEnchantConfig.debugEnabled) {
+                entity.isCustomNameVisible = false
+                entity.passengers.forEach {
+                    if (it is net.minecraft.world.entity.Display.TextDisplay && it.entityTags().contains("mobenchant:header")) {
+                        it.discard()
+                    }
+                }
+                return
+            }
+
             val separator = Component.literal(" | ").withStyle(ChatFormatting.DARK_GRAY)
 
             var display: MutableComponent? = null
@@ -120,6 +130,17 @@ object NameplateManager {
      */
     fun updateHealthNameplate(entity: net.minecraft.world.entity.Mob) {
         try {
+            if (!MobEnchantConfig.debugEnabled) {
+                entity.customName = null
+                entity.isCustomNameVisible = false
+                entity.passengers.forEach {
+                    if (it is net.minecraft.world.entity.Display.TextDisplay && it.entityTags().contains("mobenchant:header")) {
+                        it.discard()
+                    }
+                }
+                return
+            }
+
             val hp = kotlin.math.ceil(entity.health.toDouble()).toInt()
             val maxHp = kotlin.math.ceil(entity.maxHealth.toDouble()).toInt()
             val hpString = " [❤ $hp/$maxHp]"

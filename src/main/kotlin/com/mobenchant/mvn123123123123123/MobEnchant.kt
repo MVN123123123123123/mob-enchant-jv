@@ -46,6 +46,8 @@ object MobEnchant : ModInitializer {
     override fun onInitialize() {
         logger.info("[Mob Enchant] Initializing enchantment system for Minecraft 26.1.x...")
 
+        MobEnchantConfig.load()
+
         // Force-load the attachment types so they register at startup
         MobEnchantData.ENCHANTMENTS
         MobEnchantData.INFINITY_BROKEN
@@ -354,18 +356,20 @@ object MobEnchant : ModInitializer {
         // STARTUP MESSAGE
         // =================================================================
         ServerLifecycleEvents.SERVER_STARTED.register { server ->
-            val msg = Component.literal("")
-                .append(Component.literal("[Mob Enchant] ").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD))
-                .append(Component.literal("Addon loaded! Mobs now have a 1/${EnchantmentPool.ENCHANT_CHANCE} chance to spawn enchanted.").withStyle(ChatFormatting.GREEN))
+            if (MobEnchantConfig.debugEnabled) {
+                val msg = Component.literal("")
+                    .append(Component.literal("[Mob Enchant] ").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD))
+                    .append(Component.literal("Addon loaded! Mobs now have a 1/${EnchantmentPool.ENCHANT_CHANCE} chance to spawn enchanted.").withStyle(ChatFormatting.GREEN))
 
-            val helpMsg = Component.literal("")
-                .append(Component.literal("[Mob Enchant] ").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD))
-                .append(Component.literal("Type ").withStyle(ChatFormatting.GRAY))
-                .append(Component.literal("/mobenchant help").withStyle(ChatFormatting.YELLOW))
-                .append(Component.literal(" for manual enchanting commands.").withStyle(ChatFormatting.GRAY))
+                val helpMsg = Component.literal("")
+                    .append(Component.literal("[Mob Enchant] ").withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD))
+                    .append(Component.literal("Type ").withStyle(ChatFormatting.GRAY))
+                    .append(Component.literal("/mobenchant help").withStyle(ChatFormatting.YELLOW))
+                    .append(Component.literal(" for manual enchanting commands.").withStyle(ChatFormatting.GRAY))
 
-            server.playerList.broadcastSystemMessage(msg, false)
-            server.playerList.broadcastSystemMessage(helpMsg, false)
+                server.playerList.broadcastSystemMessage(msg, false)
+                server.playerList.broadcastSystemMessage(helpMsg, false)
+            }
 
             logger.info("[Mob Enchant] Successfully loaded! Mobs have a 1/${EnchantmentPool.ENCHANT_CHANCE} chance to spawn enchanted.")
         }
