@@ -38,6 +38,9 @@ object MobEnchantCommands {
                 // /mobenchant debug
                 .then(Commands.literal("debug").executes { ctx -> cmdDebug(ctx) })
 
+                // /mobenchant bossreroll
+                .then(Commands.literal("bossreroll").executes { ctx -> cmdBossReroll(ctx) })
+
                 // /mobenchant clear
                 .then(Commands.literal("clear").executes { ctx -> cmdClear(ctx) })
 
@@ -179,6 +182,77 @@ object MobEnchantCommands {
             tell(ctx, Component.literal("  • ${NameplateManager.prettyName(e.id)}$lvlStr").withStyle(color))
         }
         tell(ctx, Component.literal("Power Score: ${EnchantmentRoller.calculatePowerScore(enchants)}").withStyle(ChatFormatting.DARK_GRAY))
+        return 1
+    }
+
+    // ========================================================================
+    // BOSS REROLL — Reroll nearest boss and remove old guards
+    // ========================================================================
+    private fun cmdBossReroll(ctx: CommandContext<CommandSourceStack>): Int {
+        val source = ctx.source
+        val world = source.level
+        val pos = source.position
+        val radius = 64.0
+
+        val box = AABB(
+            pos.x - radius, pos.y - radius, pos.z - radius,
+            pos.x + radius, pos.y + radius, pos.z + radius,
+        )
+
+        // Find nearest boss
+        val boss = world.getEntitiesOfClass(Mob::class.java, box)
+            .filter { it.isAlive && BossEnchantHandler.isBoss(it) }
+            .minByOrNull { it.distanceToSqr(pos) }
+
+        if (boss == null) {
+            tell(ctx, Component.literal("").append(prefix()).append(Component.literal("No boss found within ${radius.toInt()} blocks!").withStyle(ChatFormatting.RED)))
+            return 0
+        }
+
+        // Remove old guards globally
+        val bossTag = "boss_${boss.uuid}"
+        val removedCount = java.util.concurrent.atomic.AtomicInteger(0)
+        
+        val guardsToRemove = mutableListOf<java.util.UUID>()
+        for (guardId in BossGuardManager.activeGuards) {
+            val guard = source.server.allLevels.mapNotNull { it.getEntity(guardId) as? Mob }.firstOrNull()
+            if (guard != null && guard.entityTags().contains(bossTag)) {
+                guard.discard()
+                if (guard.level() is net.minecraft.server.level.ServerLevel) {
+                    (guard.level() as net.minecraft.server.level.ServerLevel).sendParticles(net.minecraft.core.particles.ParticleTypes.POOF, guard.x, guard.y + 1.0, guard.z, 10, 0.5, 0.5, 0.5, 0.05)
+                }
+                guardsToRemove.add(guardId)
+                removedCount.incrementAndGet()
+            }
+        }
+        BossGuardManager.activeGuards.removeAll(guardsToRemove)
+
+        // Reroll enchants
+        val newEnchants = BossEnchantHandler.rollBossEnchantments(6, BossEnchantHandler.UNMODIFIED_ENCHANTS)
+        
+        // Remove old passive effects
+        try {
+            boss.removeEffect(MobEffects.FIRE_RESISTANCE)
+            boss.removeEffect(MobEffects.WATER_BREATHING)
+            boss.removeEffect(MobEffects.SPEED)
+            boss.removeEffect(MobEffects.RESISTANCE)
+            boss.removeEffect(MobEffects.SLOW_FALLING)
+        } catch (_: Exception) {}
+
+        boss.setMobEnchantments(newEnchants)
+        NameplateManager.setEnchantedNameplate(boss, newEnchants)
+        EnchantmentEffects.applyPassiveBoosts(boss, newEnchants)
+        
+        // Reset guards killed tracker
+        BossEnchantHandler.bossGuardsKilled[boss.uuid] = 0
+
+        // Spawn new guards
+        MobEnchant.scheduleTask(1) {
+            BossGuardManager.spawnGuards(boss, 2, falling = false)
+        }
+
+        val mobName = mobTypeName(boss)
+        tell(ctx, Component.literal("").append(prefix()).append(Component.literal("Rerolled $mobName enchantments and removed ${removedCount.get()} old guards!").withStyle(ChatFormatting.GREEN)))
         return 1
     }
 

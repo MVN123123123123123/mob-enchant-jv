@@ -312,21 +312,32 @@ object MobEnchant : ModInitializer {
             // Every 10 ticks — Update health on enchanted nameplates
             if (tickCounter % 10 == 0) {
                 for (world in server.allLevels) {
+                    val mobsToUpdate = mutableListOf<Mob>()
+                    val displaysToRemove = mutableListOf<net.minecraft.world.entity.Display.TextDisplay>()
+                    
                     for (entity: net.minecraft.world.entity.Entity? in world.allEntities) {
                         if (entity == null) continue
                         if (entity is Mob && entity.isAlive) {
-                            val enchants = entity.getMobEnchantments()
-                            if (!enchants.isNullOrEmpty()) {
-                                NameplateManager.setEnchantedNameplate(entity, enchants)
-                            } else {
-                                NameplateManager.updateHealthNameplate(entity)
-                            }
+                            mobsToUpdate.add(entity)
                         } else if (entity is net.minecraft.world.entity.Display.TextDisplay && entity.entityTags().contains("mobenchant:header")) {
                             // If the text display is no longer riding a mob (e.g. mob transformed or despawned), discard it
                             if (entity.vehicle == null) {
-                                entity.discard()
+                                displaysToRemove.add(entity)
                             }
                         }
+                    }
+                    
+                    for (mob in mobsToUpdate) {
+                        val enchants = mob.getMobEnchantments()
+                        if (!enchants.isNullOrEmpty()) {
+                            NameplateManager.setEnchantedNameplate(mob, enchants)
+                        } else {
+                            NameplateManager.updateHealthNameplate(mob)
+                        }
+                    }
+                    
+                    for (display in displaysToRemove) {
+                        display.discard()
                     }
                 }
             }

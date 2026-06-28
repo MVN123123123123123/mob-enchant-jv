@@ -32,7 +32,7 @@ object BossGuardManager {
     val guardAttackCooldowns = ConcurrentHashMap<UUID, Int>()
 
     // Track guards by their UUID
-    private val activeGuards = mutableSetOf<UUID>()
+    val activeGuards = mutableSetOf<UUID>()
 
     fun spawnGuards(boss: Mob, count: Int, falling: Boolean, enchanted: Boolean = !falling) {
         val world = boss.level() as? ServerLevel ?: return

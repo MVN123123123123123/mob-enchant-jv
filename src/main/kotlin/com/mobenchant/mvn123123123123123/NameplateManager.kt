@@ -60,7 +60,7 @@ object NameplateManager {
         try {
             if (!MobEnchantConfig.debugEnabled) {
                 entity.isCustomNameVisible = false
-                entity.passengers.forEach {
+                entity.passengers.toList().forEach {
                     if (it is net.minecraft.world.entity.Display.TextDisplay && it.entityTags().contains("mobenchant:header")) {
                         it.discard()
                     }
@@ -133,7 +133,7 @@ object NameplateManager {
             if (!MobEnchantConfig.debugEnabled) {
                 entity.customName = null
                 entity.isCustomNameVisible = false
-                entity.passengers.forEach {
+                entity.passengers.toList().forEach {
                     if (it is net.minecraft.world.entity.Display.TextDisplay && it.entityTags().contains("mobenchant:header")) {
                         it.discard()
                     }
@@ -146,7 +146,7 @@ object NameplateManager {
             val hpString = " [❤ $hp/$maxHp]"
             
             // Clean up any left-over TextDisplay passenger from when it was enchanted
-            entity.passengers.forEach {
+            entity.passengers.toList().forEach {
                 if (it is net.minecraft.world.entity.Display.TextDisplay && it.entityTags().contains("mobenchant:header")) {
                     it.discard()
                 }

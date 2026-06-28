@@ -92,10 +92,20 @@ object BossEnchantHandler {
                     
                     // Rain particles around nearby players
                     if (hasRainEffect) {
-                        val players = world.getEntitiesOfClass(Player::class.java, boss.boundingBox.inflate(48.0))
-                        for (player in players) {
-                            if (!player.isSpectator) {
-                                currentPlayersInRain.add(player.uuid)
+                        val rainSources = mutableListOf<Mob>(boss)
+                        for (guardId in BossGuardManager.activeGuards) {
+                            val guard = server.allLevels.mapNotNull { it.getEntity(guardId) as? Mob }.firstOrNull()
+                            if (guard != null && guard.entityTags().contains("boss_${boss.uuid}")) {
+                                rainSources.add(guard)
+                            }
+                        }
+                        
+                        for (source in rainSources) {
+                            val players = source.level().getEntitiesOfClass(Player::class.java, source.boundingBox.inflate(48.0))
+                            for (player in players) {
+                                if (!player.isSpectator) {
+                                    currentPlayersInRain.add(player.uuid)
+                                }
                             }
                         }
                     }
@@ -110,14 +120,26 @@ object BossEnchantHandler {
         
         activeBosses.removeAll(bossesToRemove)
         
-        // Handle fake rain packets
+        // Handle fake rain packets and manual particles
         for (uuid in currentPlayersInRain) {
-            if (!playersInFakeRain.contains(uuid)) {
-                val player = server.playerList.getPlayer(uuid)
-                if (player != null) {
+            val player = server.playerList.getPlayer(uuid)
+            if (player != null) {
+                if (!playersInFakeRain.contains(uuid)) {
                     player.connection.send(ClientboundGameEventPacket(ClientboundGameEventPacket.START_RAINING, 0.0f))
                     player.connection.send(ClientboundGameEventPacket(ClientboundGameEventPacket.RAIN_LEVEL_CHANGE, 1.0f))
                     playersInFakeRain.add(uuid)
+                }
+                
+                // Spawn manual particles because biomes like The End don't render normal rain
+                val sl = player.level() as? net.minecraft.server.level.ServerLevel
+                if (sl != null) {
+                    for (i in 0..150) {
+                        val dx = (sl.random.nextDouble() - 0.5) * 30.0
+                        val dz = (sl.random.nextDouble() - 0.5) * 30.0
+                        // Spawn high above the player (y+10 to y+20) so they naturally fall down
+                        val dy = sl.random.nextDouble() * 5.0 + 10.0
+                        sl.sendParticles(ParticleTypes.RAIN, player.x + dx, player.y + dy, player.z + dz, 1, 0.0, 0.0, 0.0, 0.0)
+                    }
                 }
             }
         }
