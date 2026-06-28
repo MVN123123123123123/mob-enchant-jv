@@ -6,4 +6,4 @@ For setup instructions, please see the [Fabric Documentation page](https://docs.
 
 ## License
 
-This template is available under the CC0 license. Feel free to learn from it and incorporate it in your own projects. but add my project name in the code, as of like " //used a sector of code lines from mod ..." or "//idea from mod ..." if you have humanity.
+This mod is available under the CC0 license. Feel free to learn from it and incorporate it in your own projects. but add my project name in the code, as of like " //used a sector of code lines from mod ..." or "//idea from mod ..." if you have humanity.
