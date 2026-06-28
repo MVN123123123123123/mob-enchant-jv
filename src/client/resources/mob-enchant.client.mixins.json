@@ -11,7 +11,11 @@
 		"WitherSkeletonRendererMixin",
 		"EndermanRenderStateMixin",
 		"EndermanModelMixin",
-		"LivingEntityRendererMixin"
+		"LivingEntityRendererMixin",
+		"WingsLayerMixin",
+		"SkeletonRenderStateMixin",
+		"SkeletonModelMixin",
+		"AbstractSkeletonRendererMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
