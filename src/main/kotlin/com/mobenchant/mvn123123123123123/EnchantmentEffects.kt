@@ -476,6 +476,11 @@ object EnchantmentEffects {
     // ========================================================================
     fun handleMending(attacker: LivingEntity, damageTaken: Float) {
         val mending = attacker.getMobEnchant("mending") ?: return
+        
+        if (attacker is Mob && BossEnchantHandler.isBoss(attacker)) {
+            if (Random.nextDouble() >= 0.75) return
+        }
+
         val healAmount = (damageTaken * 0.20f).coerceIn(2.0f, 40.0f)
         attacker.heal(healAmount)
         if (attacker.level() is ServerLevel) {
