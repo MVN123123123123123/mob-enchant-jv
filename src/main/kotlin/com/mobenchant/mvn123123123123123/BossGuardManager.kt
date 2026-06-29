@@ -62,6 +62,9 @@ object BossGuardManager {
                 guard.setItemSlot(EquipmentSlot.CHEST, ItemStack(Items.ELYTRA))
                 guard.setItemSlot(EquipmentSlot.MAINHAND, ItemStack(Items.FIREWORK_ROCKET))
 
+                // Ensure they don't despawn naturally when the player is far away or logs out
+                guard.setPersistenceRequired()
+
                 // Tag and track
                 guard.addTag("boss_guard")
                 guard.addTag("boss_${boss.uuid}")
