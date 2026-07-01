@@ -151,9 +151,10 @@ object BossEnchantHandler {
                 if (player != null) {
                     if (player.level().isRaining()) {
                         player.connection.send(ClientboundGameEventPacket(ClientboundGameEventPacket.START_RAINING, 0.0f))
-                        player.connection.send(ClientboundGameEventPacket(ClientboundGameEventPacket.RAIN_LEVEL_CHANGE, 1.0f))
+                        player.connection.send(ClientboundGameEventPacket(ClientboundGameEventPacket.RAIN_LEVEL_CHANGE, player.level().getRainLevel(1.0f)))
                     } else {
                         player.connection.send(ClientboundGameEventPacket(ClientboundGameEventPacket.STOP_RAINING, 0.0f))
+                        player.connection.send(ClientboundGameEventPacket(ClientboundGameEventPacket.RAIN_LEVEL_CHANGE, 0.0f))
                     }
                 }
                 toRemoveFromRain.add(uuid)
