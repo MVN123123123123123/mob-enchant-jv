@@ -240,7 +240,7 @@ object BossGuardManager {
                                         val targetXRot = (-(kotlin.math.atan2(newVel.y, horizontalDistance) * (180.0 / Math.PI))).toFloat()
                                         
                                         val turnRate = net.minecraft.util.Mth.wrapDegrees(targetYRot - guard.yBodyRot)
-                                        val leanAngle = net.minecraft.util.Mth.clamp(turnRate * 5.0f, -60.0f, 60.0f)
+                                        val leanAngle = net.minecraft.util.Mth.clamp(turnRate * 2.0f, -30.0f, 30.0f)
                                         
                                         guard.setYRot(targetYRot - leanAngle)
                                         guard.setXRot(targetXRot)
@@ -299,7 +299,7 @@ object BossGuardManager {
                                         val targetXRot = (-(kotlin.math.atan2(newVel.y, horizontalDistance) * (180.0 / Math.PI))).toFloat()
                                         
                                         val turnRate = net.minecraft.util.Mth.wrapDegrees(targetYRot - guard.yBodyRot)
-                                        val leanAngle = net.minecraft.util.Mth.clamp(turnRate * 5.0f, -60.0f, 60.0f)
+                                        val leanAngle = net.minecraft.util.Mth.clamp(turnRate * 2.0f, -30.0f, 30.0f)
                                         
                                         guard.setYRot(targetYRot - leanAngle)
                                         guard.setXRot(targetXRot)

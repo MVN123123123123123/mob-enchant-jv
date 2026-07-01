@@ -17,6 +17,8 @@ public abstract class LivingEntityRendererMixin<S extends LivingEntityRenderStat
     private void applyBossGuardFlightRotation(S state, PoseStack poseStack, float bodyRot, float entityScale, CallbackInfo ci) {
         if (state instanceof BossGuardState bossGuardState && bossGuardState.isBossGuard()) {
             if (state instanceof HumanoidRenderState humanoidState && humanoidState.isFallFlying) {
+                float roll = net.minecraft.util.Mth.wrapDegrees(bodyRot - state.yRot);
+                poseStack.mulPose(Axis.ZP.rotationDegrees(roll));
                 poseStack.mulPose(Axis.XP.rotationDegrees(-90.0F - state.xRot));
             }
         }
