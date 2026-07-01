@@ -239,13 +239,19 @@ object BossGuardManager {
                                         val targetYRot = (kotlin.math.atan2(newVel.z, newVel.x) * (180.0 / Math.PI)).toFloat() - 90.0f
                                         val targetXRot = (-(kotlin.math.atan2(newVel.y, horizontalDistance) * (180.0 / Math.PI))).toFloat()
                                         
-                                        val turnRate = net.minecraft.util.Mth.wrapDegrees(targetYRot - guard.yBodyRot)
-                                        val leanAngle = net.minecraft.util.Mth.clamp(turnRate * 2.0f, -30.0f, 30.0f)
+                                        val turnRateY = net.minecraft.util.Mth.wrapDegrees(targetYRot - guard.yBodyRot)
+                                        val smoothedYRot = guard.yBodyRot + net.minecraft.util.Mth.clamp(turnRateY, -25.0f, 25.0f)
                                         
-                                        guard.setYRot(targetYRot - leanAngle)
-                                        guard.setXRot(targetXRot)
-                                        guard.yBodyRot = targetYRot
-                                        guard.yHeadRot = targetYRot
+                                        val turnRateX = net.minecraft.util.Mth.wrapDegrees(targetXRot - guard.xRot)
+                                        val smoothedXRot = guard.xRot + net.minecraft.util.Mth.clamp(turnRateX, -25.0f, 25.0f)
+                                        
+                                        val actualTurn = net.minecraft.util.Mth.wrapDegrees(smoothedYRot - guard.yBodyRot)
+                                        val leanAngle = net.minecraft.util.Mth.clamp(actualTurn * 2.0f, -30.0f, 30.0f)
+                                        
+                                        guard.setYRot(smoothedYRot - leanAngle)
+                                        guard.setXRot(smoothedXRot)
+                                        guard.yBodyRot = smoothedYRot
+                                        guard.yHeadRot = smoothedYRot
                                     }
                                     
                                     // Add firework rockets for circling so they look like they are flying
@@ -298,13 +304,19 @@ object BossGuardManager {
                                         val targetYRot = (kotlin.math.atan2(newVel.z, newVel.x) * (180.0 / Math.PI)).toFloat() - 90.0f
                                         val targetXRot = (-(kotlin.math.atan2(newVel.y, horizontalDistance) * (180.0 / Math.PI))).toFloat()
                                         
-                                        val turnRate = net.minecraft.util.Mth.wrapDegrees(targetYRot - guard.yBodyRot)
-                                        val leanAngle = net.minecraft.util.Mth.clamp(turnRate * 2.0f, -30.0f, 30.0f)
+                                        val turnRateY = net.minecraft.util.Mth.wrapDegrees(targetYRot - guard.yBodyRot)
+                                        val smoothedYRot = guard.yBodyRot + net.minecraft.util.Mth.clamp(turnRateY, -25.0f, 25.0f)
                                         
-                                        guard.setYRot(targetYRot - leanAngle)
-                                        guard.setXRot(targetXRot)
-                                        guard.yBodyRot = targetYRot
-                                        guard.yHeadRot = targetYRot
+                                        val turnRateX = net.minecraft.util.Mth.wrapDegrees(targetXRot - guard.xRot)
+                                        val smoothedXRot = guard.xRot + net.minecraft.util.Mth.clamp(turnRateX, -25.0f, 25.0f)
+                                        
+                                        val actualTurn = net.minecraft.util.Mth.wrapDegrees(smoothedYRot - guard.yBodyRot)
+                                        val leanAngle = net.minecraft.util.Mth.clamp(actualTurn * 2.0f, -30.0f, 30.0f)
+                                        
+                                        guard.setYRot(smoothedYRot - leanAngle)
+                                        guard.setXRot(smoothedXRot)
+                                        guard.yBodyRot = smoothedYRot
+                                        guard.yHeadRot = smoothedYRot
                                         
                                         // Firework sounds and visual rocket trails
                                         if (server.tickCount % 2 == 0) {
